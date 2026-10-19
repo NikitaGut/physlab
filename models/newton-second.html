@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Второй закон Ньютона — PhysLab</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .model-page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1rem 4rem;
+    }
+    .back-link {
+      display: inline-block;
+      color: var(--muted);
+      text-decoration: none;
+      margin-bottom: 1rem;
+      font-size: .9rem;
+    }
+    .back-link:hover { color: var(--accent-hi); }
+
+    .model-page h1 { margin: 0 0 .5rem; }
+    .model-page .lead { color: var(--muted); margin-top: 0; }
+
+    .stage {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin: 1.5rem 0;
+    }
+    .stage canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #0b1220;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .readout {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: .75rem;
+      margin-top: 1rem;
+    }
+    .readout-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem 1rem;
+    }
+    .readout-label { font-size: .8rem; color: var(--muted); }
+    .readout-value {
+      font-size: 1.3rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-hi);
+    }
+    .readout-unit { font-size: .9rem; color: var(--muted); margin-left: .2rem; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: .5rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .slider-row label { grid-column: 1 / -1; color: var(--muted); font-size: .9rem; }
+    .slider-row input[type="range"] { width: 100%; accent-color: var(--accent); }
+    .slider-row output {
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-hi);
+      font-weight: 600;
+      min-width: 4rem;
+      text-align: right;
+    }
+
+    .buttons { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: .5rem; }
+    .btn {
+      padding: .65rem 1.25rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .formula-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .formula {
+      font-size: 1.4rem;
+      text-align: center;
+      margin: 1rem 0;
+      color: var(--accent-hi);
+      font-family: "Cambria Math", Georgia, serif;
+    }
+    .formula-box p { color: var(--muted); margin: .5rem 0 0; }
+
+    /* ── Стили для графика ──────────────── */
+    .chart-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin: 1.5rem 0;
+      position: relative;
+      height: 300px; /* фиксированная высота */
+    }
+    #chart-speed {
+      /* Убираем глобальные стили canvas, чтобы Chart.js сам управлял размером */
+      background: transparent;
+      border-radius: 0;
+    }
+  </style>
+</head>
+<body>
+  <main class="model-page">
+    <a href="../index.html" class="back-link">← Все модели</a>
+
+    <h1>🏎️ Второй закон Ньютона</h1>
+    <p class="lead">Меняй силу и массу — наблюдай, как меняется ускорение.</p>
+
+    <div class="panel">
+      <div class="slider-row">
+        <label for="force">Сила F</label>
+        <input type="range" id="force" min="10" max="200" step="5" value="100">
+        <output for="force" id="force-out">100 Н</output>
+      </div>
+
+      <div class="slider-row">
+        <label for="mass">Масса m</label>
+        <input type="range" id="mass" min="1" max="20" step="0.5" value="5">
+        <output for="mass" id="mass-out">5.0 кг</output>
+      </div>
+
+      <div class="buttons">
+        <button class="btn primary" id="btn-start">▶ Запустить</button>
+        <button class="btn" id="btn-pause" disabled>⏸ Пауза</button>
+        <button class="btn" id="btn-reset">↺ Сброс</button>
+      </div>
+    </div>
+
+    <div class="stage">
+      <canvas id="canvas" width="860" height="260"></canvas>
+
+      <div class="readout">
+        <div class="readout-item">
+          <div class="readout-label">Время t</div>
+          <div><span class="readout-value" id="out-time">0.00</span><span class="readout-unit">с</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Ускорение a</div>
+          <div><span class="readout-value" id="out-accel">20.0</span><span class="readout-unit">м/с²</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Скорость v</div>
+          <div><span class="readout-value" id="out-speed">0.0</span><span class="readout-unit">м/с</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Путь s</div>
+          <div><span class="readout-value" id="out-path">0.0</span><span class="readout-unit">м</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <canvas id="chart-speed"></canvas>
+    </div>
+
+    <div class="formula-box">
+      <div class="formula">F = m · a &nbsp;⟹&nbsp; a = F / m</div>
+      <p>
+        Чем больше сила, действующая на тело, тем больше его ускорение.
+        Чем больше масса тела, тем труднее его разогнать — ускорение меньше.
+        При постоянной силе тело движется равноускоренно: скорость растёт
+        линейно со временем, а путь — пропорционально квадрату времени.
+      </p>
+    </div>
+  </main>
+
+  <script>
+    // ─── 1. Константы сцены ───────────────────────────
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const PADDING_X = 30;
+    const SCENE_METERS = 100;
+    const PX_PER_METER = (canvas.width - PADDING_X * 2) / SCENE_METERS;
+
+    // ─── 2. Состояние симуляции ───────────────────────
+    const state = {
+      running: false,
+      paused: false,
+      force: 100,
+      mass: 5,
+      elapsed: 0,
+      speed: 0,
+      path: 0,
+      lastTimestamp: null,
+      finished: false
+    };
+
+    // ─── 3. Элементы UI ───────────────────────────────
+    const forceInput = document.getElementById('force');
+    const forceOut   = document.getElementById('force-out');
+    const massInput  = document.getElementById('mass');
+    const massOut    = document.getElementById('mass-out');
+    const outTime    = document.getElementById('out-time');
+    const outAccel   = document.getElementById('out-accel');
+    const outSpeed   = document.getElementById('out-speed');
+    const outPath    = document.getElementById('out-path');
+    const btnStart   = document.getElementById('btn-start');
+    const btnPause   = document.getElementById('btn-pause');
+    const btnReset   = document.getElementById('btn-reset');
+
+    // ─── 4. Ускорение ─────────────────────────────────
+    function acceleration() {
+      return state.force / state.mass;
+    }
+
+    // ─── 5. Chart.js с фиксированными осями ───────────
+    const chartCtx = document.getElementById('chart-speed').getContext('2d');
+    let chart;
+
+    // Зафиксируем диапазоны осей
+    const CHART_X_MAX = 10;        // секунд
+    const CHART_Y_MAX = 200;       // м/с — с запасом под макс. ускорение
+
+    function initChart() {
+      chart = new Chart(chartCtx, {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'Скорость v, м/с',
+            // Данные — массив точек {x, y}, чтобы ось X работала как числовая шкала
+            data: [],
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,          // без анимации — линия «плывёт» сама
+          parsing: false,            // ускоряет отрисовку при наших данных
+          normalized: true,
+          plugins: {
+            legend: {
+              labels: { color: '#94a3b8' }
+            }
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              min: 0,
+              max: CHART_X_MAX,      // фиксированный диапазон
+              title: { display: true, text: 'Время t, с', color: '#94a3b8' },
+              ticks: { color: '#64748b', stepSize: 1 },
+              grid: { color: '#1e293b' }
+            },
+            y: {
+              min: 0,
+              max: CHART_Y_MAX,      // фиксированный диапазон
+              title: { display: true, text: 'Скорость v, м/с', color: '#94a3b8' },
+              ticks: { color: '#64748b' },
+              grid: { color: '#1e293b' }
+            }
+          }
+        }
+      });
+    }
+
+    // ─── 6. Отрисовка сцены ───────────────────────────
+    function draw() {
+      const x = PADDING_X + Math.min(state.path, SCENE_METERS) * PX_PER_METER;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const roadY = canvas.height - 90;
+      ctx.fillStyle = '#1a2438';
+      ctx.fillRect(PADDING_X, roadY, canvas.width - PADDING_X * 2, 40);
+
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([12, 12]);
+      ctx.beginPath();
+      ctx.moveTo(PADDING_X, roadY + 20);
+      ctx.lineTo(canvas.width - PADDING_X, roadY + 20);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const carY = roadY - 8;
+      ctx.save();
+      ctx.translate(x, carY);
+      ctx.scale(-1, 1);
+      ctx.font = '40px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('🏎️', 0, 0);
+      ctx.restore();
+
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(PADDING_X, roadY + 34);
+      ctx.lineTo(x, roadY + 34);
+      ctx.stroke();
+
+      if (state.running || state.speed > 0) {
+        const arrowStart = x + 30;
+        const arrowEnd   = arrowStart + Math.min(state.force / 4, 60);
+        ctx.strokeStyle = '#ef4444';
+        ctx.fillStyle = '#ef4444';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(arrowStart, carY - 15);
+        ctx.lineTo(arrowEnd, carY - 15);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(arrowEnd, carY - 15);
+        ctx.lineTo(arrowEnd - 8, carY - 20);
+        ctx.lineTo(arrowEnd - 8, carY - 10);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('F', arrowEnd + 4, carY - 11);
+      }
+
+      if (state.path > 2) {
+        ctx.fillStyle = '#60a5fa';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        const midX = PADDING_X + (x - PADDING_X) / 2;
+        ctx.fillText(`${Math.min(state.path, SCENE_METERS).toFixed(0)} м`, midX, roadY + 64);
+      }
+    }
+
+    // ─── 7. Показания ─────────────────────────────────
+    function updateReadout() {
+      outTime.textContent  = state.elapsed.toFixed(2);
+      outAccel.textContent = acceleration().toFixed(1);
+      outSpeed.textContent = state.speed.toFixed(1);
+      outPath.textContent  = Math.min(state.path, SCENE_METERS).toFixed(1);
+    }
+
+    // ─── 8. Главный цикл ──────────────────────────────
+    function loop(timestamp) {
+      if (!state.running || state.paused) return;
+
+      if (state.lastTimestamp === null) {
+        state.lastTimestamp = timestamp;
+      }
+      const dt = (timestamp - state.lastTimestamp) / 1000;
+      state.lastTimestamp = timestamp;
+
+      // Физика
+      const a = acceleration();
+      const newSpeed = state.speed + a * dt;
+      const ds = (state.speed + newSpeed) / 2 * dt;
+
+      state.speed = newSpeed;
+      state.path += ds;
+      state.elapsed += dt;
+
+      // Обновление графика — КАЖДЫЙ кадр, чтобы линия плавно «плыла»
+      if (chart && state.elapsed <= CHART_X_MAX) {
+        chart.data.datasets[0].data.push({ x: state.elapsed, y: state.speed });
+        chart.update('none'); // 'none' = без анимации перерисовки
+      }
+
+      // Финиш
+      if (state.path >= SCENE_METERS) {
+        state.path = SCENE_METERS;
+        state.running = false;
+        state.paused = false;
+        state.finished = true;
+        finish();
+      }
+
+      draw();
+      updateReadout();
+
+      if (state.running) {
+        requestAnimationFrame(loop);
+      }
+    }
+
+    // ─── 9. Кнопки ────────────────────────────────────
+    function start() {
+      if (state.running && !state.paused) return;
+      if (state.finished) reset();
+
+      state.running = true;
+      state.paused = false;
+      state.lastTimestamp = null;
+      btnStart.disabled = true;
+      btnPause.disabled = false;
+      btnPause.textContent = '⏸ Пауза';
+      requestAnimationFrame(loop);
+    }
+
+    function pauseToggle() {
+      if (!state.running) return;
+      if (state.paused) {
+        state.paused = false;
+        state.lastTimestamp = null;
+        btnPause.textContent = '⏸ Пауза';
+        requestAnimationFrame(loop);
+      } else {
+        state.paused = true;
+        btnPause.textContent = '▶ Продолжить';
+      }
+    }
+
+    function reset() {
+      state.running = false;
+      state.paused = false;
+      state.elapsed = 0;
+      state.speed = 0;
+      state.path = 0;
+      state.lastTimestamp = null;
+      state.finished = false;
+
+      btnStart.disabled = false;
+      btnStart.textContent = '▶ Запустить';
+      btnPause.disabled = true;
+      btnPause.textContent = '⏸ Пауза';
+
+      // Сброс графика
+      if (chart) {
+        chart.data.datasets[0].data = [];
+        chart.update('none');
+      }
+
+      draw();
+      updateReadout();
+    }
+
+    function finish() {
+      btnStart.disabled = false;
+      btnStart.textContent = '▶ Запустить';
+      btnPause.disabled = true;
+      draw();
+      updateReadout();
+    }
+
+    // ─── 10. Ползунки ─────────────────────────────────
+    forceInput.addEventListener('input', (e) => {
+      state.force = parseFloat(e.target.value);
+      forceOut.textContent = `${state.force} Н`;
+      updateReadout();
+      draw();
+    });
+
+    massInput.addEventListener('input', (e) => {
+      state.mass = parseFloat(e.target.value);
+      massOut.textContent = `${state.mass.toFixed(1)} кг`;
+      updateReadout();
+      draw();
+    });
+
+    // ─── 11. Обработчики кнопок ───────────────────────
+    btnStart.addEventListener('click', start);
+    btnPause.addEventListener('click', pauseToggle);
+    btnReset.addEventListener('click', reset);
+
+    // ─── 12. Старт ────────────────────────────────────
+    initChart();
+    draw();
+    updateReadout();
+  </script>
+</body>
+</html>

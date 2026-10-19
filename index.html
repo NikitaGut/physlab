@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhysLab — физика, которую можно увидеть</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="hero">
+    <h1>PhysLab</h1>
+    <p class="tagline">Физика, которую можно увидеть</p>
+  </header>
+
+  <main>
+    <section class="controls">
+      <input
+        type="search"
+        id="search"
+        placeholder="Поиск модели по названию…"
+        aria-label="Поиск модели"
+      >
+      <div class="categories" id="categories"><!-- кнопки категорий --></div>
+    </section>
+
+    <section class="grid" id="models-grid"><!-- карточки --></section>
+
+    <p class="empty-state" id="empty-state" hidden>
+      Ничего не найдено 🤔
+    </p>
+  </main>
+
+  <footer>
+    <p>Учебный проект по информатике · 2026</p>
+  </footer>
+
+  <script src="js/models-data.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
