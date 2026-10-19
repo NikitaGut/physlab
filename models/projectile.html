@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Бросок под углом — PhysLab</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .model-page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1rem 4rem;
+    }
+    .back-link {
+      display: inline-block;
+      color: var(--muted);
+      text-decoration: none;
+      margin-bottom: 1rem;
+      font-size: .9rem;
+    }
+    .back-link:hover { color: var(--accent-hi); }
+
+    .model-page h1 { margin: 0 0 .5rem; }
+    .model-page .lead { color: var(--muted); margin-top: 0; }
+
+    .stage {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin: 1.5rem 0;
+    }
+    .stage canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #0b1220;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .readout {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: .75rem;
+      margin-top: 1rem;
+    }
+    .readout-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem 1rem;
+    }
+    .readout-label { font-size: .8rem; color: var(--muted); }
+    .readout-value {
+      font-size: 1.3rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-hi);
+    }
+    .readout-unit { font-size: .9rem; color: var(--muted); margin-left: .2rem; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: .5rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .slider-row label { grid-column: 1 / -1; color: var(--muted); font-size: .9rem; }
+    .slider-row input[type="range"] { width: 100%; accent-color: var(--accent); }
+    .slider-row output {
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-hi);
+      font-weight: 600;
+      min-width: 5rem;
+      text-align: right;
+    }
+
+    .presets { display: flex; gap: .5rem; flex-wrap: wrap; margin: -.25rem 0 1.25rem; }
+    .preset {
+      padding: .3rem .75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      font-size: .8rem;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .preset:hover { color: var(--text); border-color: var(--accent); }
+
+    .buttons { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: .5rem; }
+    .btn {
+      padding: .65rem 1.25rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .hint { color: var(--muted); font-size: .9rem; margin: 1rem 0 0; }
+
+    /* ── Графики ────────────────────────── */
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+    .charts[hidden] { display: none; }
+    .chart-container {
+      position: relative;
+      height: 280px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+
+    .formula-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+    .formula {
+      font-size: 1.3rem;
+      text-align: center;
+      margin: 1rem 0;
+      color: var(--accent-hi);
+      font-family: "Cambria Math", Georgia, serif;
+    }
+    .formula + .formula { margin-top: -.25rem; }
+    .formula-box p { color: var(--muted); margin: .5rem 0 0; }
+
+    @media (max-width: 720px) {
+      .charts { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="model-page">
+    <a href="../index.html" class="back-link">← Все модели</a>
+
+    <h1>⚽ Бросок под углом</h1>
+    <p class="lead">Наведи пушку и выстрели: меняй скорость и угол — и смотри, куда полетит ядро.</p>
+
+    <!-- Управление -->
+    <div class="panel">
+      <div class="slider-row">
+        <label for="speed">Начальная скорость v₀</label>
+        <input type="range" id="speed" min="10" max="50" step="1" value="20">
+        <output for="speed" id="speed-out">20 м/с</output>
+      </div>
+
+      <div class="slider-row">
+        <label for="angle">Угол выстрела α</label>
+        <input type="range" id="angle" min="5" max="85" step="1" value="45">
+        <output for="angle" id="angle-out">45°</output>
+      </div>
+
+      <div class="presets">
+        <button class="preset" type="button" data-angle="30">30°</button>
+        <button class="preset" type="button" data-angle="45">45° · максимум</button>
+        <button class="preset" type="button" data-angle="60">60°</button>
+      </div>
+
+      <div class="buttons">
+        <button class="btn primary" id="btn-start">🔥 Выстрелить</button>
+        <button class="btn" id="btn-pause" disabled>⏸ Пауза</button>
+        <button class="btn" id="btn-reset">↺ Сброс</button>
+      </div>
+
+      <p class="hint" id="hint"></p>
+    </div>
+
+    <!-- Сцена -->
+    <div class="stage">
+      <canvas id="canvas" width="860" height="380"></canvas>
+
+      <div class="readout">
+        <div class="readout-item">
+          <div class="readout-label">Время t</div>
+          <div><span class="readout-value" id="out-time">0.00</span><span class="readout-unit">с</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Дальность x</div>
+          <div><span class="readout-value" id="out-x">0.0</span><span class="readout-unit">м</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Высота y</div>
+          <div><span class="readout-value" id="out-y">0.0</span><span class="readout-unit">м</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Скорость v</div>
+          <div><span class="readout-value" id="out-speed">20.0</span><span class="readout-unit">м/с</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Графики -->
+    <div class="charts" id="charts">
+      <div class="chart-container"><canvas id="chart-path"></canvas></div>
+      <div class="chart-container"><canvas id="chart-velocity"></canvas></div>
+    </div>
+
+    <!-- Теория -->
+    <div class="formula-box">
+      <div class="formula">
+        x = v₀·cosα·t &nbsp;&nbsp;&nbsp; y = v₀·sinα·t − g·t²/2
+      </div>
+      <div class="formula">
+        L = v₀²·sin(2α)/g &nbsp;&nbsp;&nbsp; H = v₀²·sin²α/(2g) &nbsp;&nbsp;&nbsp; t = 2·v₀·sinα/g
+      </div>
+      <p>
+        Полёт раскладывается на два независимых движения: вдоль горизонта тело летит
+        равномерно со скоростью <em>v</em>₀cosα, а по вертикали — равноускоренно с
+        начальной скоростью <em>v</em>₀sinα. Именно поэтому траектория — парабола.
+        Дальность максимальна при α = 45°, а углы 30° и 60° дают одинаковую дальность,
+        но разные траектории. Сопротивление воздуха не учитывается.
+      </p>
+    </div>
+  </main>
+
+  <script>
+    // ─── 1. Константы сцены ───────────────────────────
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const PIVOT_X = 100;                  // точка, из которой стреляет пушка
+    const GROUND_Y = canvas.height - 58;  // уровень земли
+    const FIELD_TOP = 46;                 // верхняя граница поля
+    const AXIS_X = 38;                    // вертикальная ось высоты
+    const BALL_R = 8;
+    const G = 9.8;                        // ускорение свободного падения
+
+    // ─── 2. Состояние симуляции ───────────────────────
+    const state = {
+      running: false,
+      paused: false,
+      finished: false,
+      speed0: 20,          // начальная скорость, м/с
+      angle: 45,           // угол к горизонту, градусы
+      elapsed: 0,          // время полёта, с
+      x: 0,                // текущая дальность, м
+      y: 0,                // текущая высота, м
+      vx: 0,
+      vy: 0,
+      speed: 20,           // модуль скорости, м/с
+      lastTimestamp: null,
+      trail: []            // точки траектории для следа
+    };
+
+    let SCALE = 1;         // пикселей на метр (пересчитывается под параметры)
+
+    // ─── 3. Элементы UI ───────────────────────────────
+    const speedInput = document.getElementById('speed');
+    const speedOut   = document.getElementById('speed-out');
+    const angleInput = document.getElementById('angle');
+    const angleOut   = document.getElementById('angle-out');
+    const hint       = document.getElementById('hint');
+    const outTime    = document.getElementById('out-time');
+    const outX       = document.getElementById('out-x');
+    const outY       = document.getElementById('out-y');
+    const outSpeed   = document.getElementById('out-speed');
+    const btnStart   = document.getElementById('btn-start');
+    const btnPause   = document.getElementById('btn-pause');
+    const btnReset   = document.getElementById('btn-reset');
+    const presets    = document.querySelectorAll('.preset');
+
+    // ─── 4. Формулы полёта ────────────────────────────
+    function angleRad() {
+      return state.angle * Math.PI / 180;
+    }
+
+    // Дальность: L = v₀²·sin(2α)/g
+    function flightRange() {
+      return state.speed0 * state.speed0 * Math.sin(2 * angleRad()) / G;
+    }
+
+    // Максимальная высота: H = v₀²·sin²α/(2g)
+    function maxHeight() {
+      const s = Math.sin(angleRad());
+      return state.speed0 * state.speed0 * s * s / (2 * G);
+    }
+
+    // Время полёта: t = 2·v₀·sinα/g
+    function flightTime() {
+      return 2 * state.speed0 * Math.sin(angleRad()) / G;
+    }
+
+    // Точное решение: горизонталь — равномерно, вертикаль — равноускоренно
+    function updatePhysics() {
+      const a = angleRad();
+      const t = Math.min(state.elapsed, flightTime());
+
+      state.x = state.speed0 * Math.cos(a) * t;
+      state.y = Math.max(0, state.speed0 * Math.sin(a) * t - 0.5 * G * t * t);
+      state.vx = state.speed0 * Math.cos(a);
+      state.vy = state.speed0 * Math.sin(a) - G * t;
+      state.speed = Math.hypot(state.vx, state.vy);
+    }
+
+    // ─── 5. Масштаб сцены ─────────────────────────────
+    // Подбираем масштаб так, чтобы и дальность, и высота влезли в кадр
+    function viewScale() {
+      const availW = canvas.width - PIVOT_X - 46;
+      const availH = GROUND_Y - FIELD_TOP;
+      const sx = availW / Math.max(flightRange() * 1.06, 0.001);
+      const sy = availH / Math.max(maxHeight() * 1.15, 0.001);
+      return Math.min(sx, sy);
+    }
+
+    function updateView() {
+      SCALE = viewScale();
+    }
+
+    function worldToX(x) {
+      return PIVOT_X + x * SCALE;
+    }
+
+    function worldToY(y) {
+      return GROUND_Y - y * SCALE;
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    // «Красивый» шаг: 1, 2, 5, 10, 20, 50…
+    function niceStep(range) {
+      const raw = range / 5;
+      const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+      const n = raw / pow;
+      const mult = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+      return mult * pow;
+    }
+
+    function niceMax(value, step) {
+      return step * Math.ceil(value / step);
+    }
+
+    function formatTick(value, step) {
+      if (step >= 1) return Math.round(value).toString();
+      if (step >= 0.1) return value.toFixed(1);
+      return value.toFixed(2);
+    }
+
+    // Метры: у маленьких значений показываем сотые
+    function formatMeters(value) {
+      return value < 1 ? value.toFixed(2) : value.toFixed(1);
+    }
+
+    // Шаг делений, при котором подписи не слипаются на экране
+    function axisStep(worldRange, axisPixels, minPx) {
+      const step0 = niceStep(Math.max(worldRange, 0.001));
+      const pxPerUnit = axisPixels / Math.max(worldRange, 0.001);
+      let step = step0;
+      while (step * pxPerUnit < minPx) step *= 2;
+      return step;
+    }
+
+    // ─── 6. Графики ───────────────────────────────────
+    let chartPath = null;
+    let chartVelocity = null;
+
+    const AXIS_COLOR = '#94a3b8';
+    const TICK_COLOR = '#64748b';
+    const GRID_COLOR = '#1e293b';
+
+    function pathXStep() { return niceStep(flightRange()); }
+    function pathXMax()  { return niceMax(flightRange() * 1.05, pathXStep()); }
+    function pathYStep() { return niceStep(Math.max(maxHeight(), 0.001)); }
+    function pathYMax()  { return niceMax(Math.max(maxHeight(), 0.001) * 1.1, pathYStep()); }
+
+    function timeStepC() { return niceStep(flightTime()); }
+    function timeMaxC()  { return niceMax(flightTime() * 1.05, timeStepC()); }
+
+    function velocityComponentMax() {
+      return Math.max(
+        state.speed0 * Math.cos(angleRad()),
+        state.speed0 * Math.sin(angleRad())
+      );
+    }
+
+    function velStep() {
+      return niceStep(velocityComponentMax() * 2);
+    }
+    function velMax() {
+      return niceMax(velocityComponentMax() * 1.1, velStep());
+    }
+    function velMin() {
+      return -niceMax(state.speed0 * Math.sin(angleRad()) * 1.1, velStep());
+    }
+
+    function baseOptions(xTitle, yTitle, xMax, xStep, yMin, yMax, yStep) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        parsing: false,
+        normalized: true,
+        locale: 'en-US',   // десятичные точки, как в показаниях
+        plugins: {
+          legend: { labels: { color: AXIS_COLOR } }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            min: 0,
+            max: xMax,
+            title: { display: true, text: xTitle, color: AXIS_COLOR },
+            ticks: { color: TICK_COLOR, stepSize: xStep },
+            grid: { color: GRID_COLOR }
+          },
+          y: {
+            min: yMin,
+            max: yMax,
+            title: { display: true, text: yTitle, color: AXIS_COLOR },
+            ticks: { color: TICK_COLOR, stepSize: yStep },
+            grid: { color: GRID_COLOR }
+          }
+        }
+      };
+    }
+
+    function initCharts() {
+      // Если Chart.js не загрузился (нет интернета), сцена всё равно работает
+      if (typeof Chart === 'undefined') {
+        document.getElementById('charts').hidden = true;
+        return;
+      }
+
+      chartPath = new Chart(document.getElementById('chart-path').getContext('2d'), {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'Траектория y(x)',
+            data: [],
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, .10)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0,
+            pointRadius: 0
+          }]
+        },
+        options: baseOptions(
+          'Дальность x, м', 'Высота y, м',
+          pathXMax(), pathXStep(), 0, pathYMax(), pathYStep()
+        )
+      });
+
+      chartVelocity = new Chart(document.getElementById('chart-velocity').getContext('2d'), {
+        type: 'line',
+        data: {
+          datasets: [
+            {
+              label: 'vx, м/с',
+              data: [],
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59, 130, 246, .10)',
+              borderWidth: 2,
+              fill: false,
+              tension: 0,
+              pointRadius: 0
+            },
+            {
+              label: 'vy, м/с',
+              data: [],
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, .10)',
+              borderWidth: 2,
+              fill: false,
+              tension: 0,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: baseOptions(
+          'Время t, с', 'Скорость, м/с',
+          timeMaxC(), timeStepC(), velMin(), velMax(), velStep()
+        )
+      });
+    }
+
+    // Подгоняем диапазоны осей под текущие параметры
+    function applyChartAxes() {
+      if (!chartPath) return;
+
+      chartPath.options.scales.x.max = pathXMax();
+      chartPath.options.scales.x.ticks.stepSize = pathXStep();
+      chartPath.options.scales.y.max = pathYMax();
+      chartPath.options.scales.y.ticks.stepSize = pathYStep();
+
+      chartVelocity.options.scales.x.max = timeMaxC();
+      chartVelocity.options.scales.x.ticks.stepSize = timeStepC();
+      chartVelocity.options.scales.y.min = velMin();
+      chartVelocity.options.scales.y.max = velMax();
+      chartVelocity.options.scales.y.ticks.stepSize = velStep();
+
+      chartPath.update('none');
+      chartVelocity.update('none');
+    }
+
+    function pushChartPoints() {
+      if (!chartPath) return;
+
+      chartPath.data.datasets[0].data.push({ x: state.x, y: state.y });
+      chartVelocity.data.datasets[0].data.push({ x: state.elapsed, y: state.vx });
+      chartVelocity.data.datasets[1].data.push({ x: state.elapsed, y: state.vy });
+
+      chartPath.update('none');
+      chartVelocity.update('none');
+    }
+
+    // ─── 7. Отрисовка сцены ───────────────────────────
+    function drawGridLines() {
+      const yStep = axisStep(Math.max(maxHeight(), 0.001), maxHeight() * SCALE, 18);
+      const xStep = axisStep(flightRange(), flightRange() * SCALE, 36);
+
+      ctx.strokeStyle = 'rgba(148, 163, 184, .06)';
+      ctx.lineWidth = 1;
+
+      for (let h = 0; h <= maxHeight() + 1e-9; h += yStep) {
+        const py = worldToY(h);
+        ctx.beginPath();
+        ctx.moveTo(AXIS_X, py);
+        ctx.lineTo(canvas.width - 20, py);
+        ctx.stroke();
+      }
+
+      for (let d = 0; d <= flightRange() + 1e-9; d += xStep) {
+        const px = worldToX(d);
+        ctx.beginPath();
+        ctx.moveTo(px, FIELD_TOP);
+        ctx.lineTo(px, GROUND_Y);
+        ctx.stroke();
+      }
+
+      // Ось высоты
+      ctx.strokeStyle = '#334155';
+      ctx.beginPath();
+      ctx.moveTo(AXIS_X, FIELD_TOP);
+      ctx.lineTo(AXIS_X, GROUND_Y);
+      ctx.stroke();
+    }
+
+    function drawAxisLabels() {
+      const yStep = axisStep(Math.max(maxHeight(), 0.001), maxHeight() * SCALE, 18);
+      const xStep = axisStep(flightRange(), flightRange() * SCALE, 36);
+
+      ctx.font = '11px sans-serif';
+      ctx.fillStyle = '#64748b';
+
+      // Подписи высоты
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      for (let h = 0; h <= maxHeight() + 1e-9; h += yStep) {
+        ctx.fillText(formatTick(h, yStep), AXIS_X - 8, worldToY(h));
+      }
+
+      // Подпись оси высоты
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('h, м', AXIS_X - 8, 24);
+
+      // Деления и подписи дальности
+      for (let d = 0; d <= flightRange() + 1e-9; d += xStep) {
+        const px = worldToX(d);
+
+        ctx.strokeStyle = '#475569';
+        ctx.beginPath();
+        ctx.moveTo(px, GROUND_Y + 26);
+        ctx.lineTo(px, GROUND_Y + 31);
+        ctx.stroke();
+
+        ctx.fillStyle = '#64748b';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(formatTick(d, xStep), px, GROUND_Y + 36);
+      }
+
+      // Подпись оси дальности
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#64748b';
+      ctx.fillText('x, м', 10, GROUND_Y + 36);
+    }
+
+    function drawPredictedPath() {
+      const a = angleRad();
+      const T = flightTime();
+      const steps = 100;
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(96, 165, 250, .28)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 7]);
+      ctx.beginPath();
+
+      for (let i = 0; i <= steps; i++) {
+        const t = (T * i) / steps;
+        const x = state.speed0 * Math.cos(a) * t;
+        const y = Math.max(0, state.speed0 * Math.sin(a) * t - 0.5 * G * t * t);
+        const px = worldToX(x);
+        const py = worldToY(y);
+
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawTrail() {
+      if (state.trail.length < 2) return;
+
+      ctx.save();
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.shadowColor = 'rgba(59, 130, 246, .5)';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+
+      state.trail.forEach((p, i) => {
+        const px = worldToX(p.x);
+        const py = worldToY(p.y);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawGround() {
+      // Полоса земли — рисуется поверх нижней части ядра,
+      // чтобы оно «стояло» на земле, а не тонуло в ней
+      ctx.fillStyle = '#1a2438';
+      ctx.fillRect(0, GROUND_Y, canvas.width, 26);
+
+      // Штриховка
+      ctx.strokeStyle = '#243049';
+      ctx.lineWidth = 1;
+      for (let x = 0; x + 14 <= canvas.width; x += 14) {
+        ctx.beginPath();
+        ctx.moveTo(x, GROUND_Y + 26);
+        ctx.lineTo(x + 14, GROUND_Y);
+        ctx.stroke();
+      }
+
+      // Линия поверхности
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, GROUND_Y);
+      ctx.lineTo(canvas.width, GROUND_Y);
+      ctx.stroke();
+    }
+
+    function drawBall() {
+      const px = worldToX(state.x);
+      const py = worldToY(state.y);
+      const grad = ctx.createRadialGradient(px - 3, py - 3, 1, px, py, BALL_R);
+      grad.addColorStop(0, '#dbeafe');
+      grad.addColorStop(0.5, '#60a5fa');
+      grad.addColorStop(1, '#1d4ed8');
+
+      ctx.save();
+      ctx.shadowColor = 'rgba(59, 130, 246, .65)';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(px, py, BALL_R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawVelocityVector() {
+      if (state.speed < 0.1) return;
+      // До выстрела ядро спрятано в стволе — вектор скорости не показываем
+      if (state.elapsed === 0) return;
+
+      const cx = worldToX(state.x);
+      const cy = worldToY(state.y);
+      const dir = Math.atan2(-state.vy, state.vx);
+      const len = 16 + 26 * (state.speed / state.speed0);
+      const sx = cx + Math.cos(dir) * (BALL_R + 2);
+      const sy = cy + Math.sin(dir) * (BALL_R + 2);
+      const ex = sx + Math.cos(dir) * len;
+      const ey = sy + Math.sin(dir) * len;
+
+      // Стрелка не должна «проваливаться» под землю и в подписи осей
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, canvas.width, GROUND_Y);
+      ctx.clip();
+
+      ctx.save();
+      ctx.strokeStyle = '#ef4444';
+      ctx.fillStyle = '#ef4444';
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(ex - Math.cos(dir - 0.4) * 7, ey - Math.sin(dir - 0.4) * 7);
+      ctx.lineTo(ex - Math.cos(dir + 0.4) * 7, ey - Math.sin(dir + 0.4) * 7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = '#f87171';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('v', ex + 5, ey);
+
+      ctx.restore();
+    }
+
+    function drawWheel(cx, cy, r) {
+      ctx.save();
+
+      ctx.fillStyle = '#451a03';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#a16207';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Спицы
+      ctx.strokeStyle = 'rgba(161, 98, 7, .9)';
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 6; i++) {
+        const ang = (i * Math.PI) / 3;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(ang) * r * 0.78, cy + Math.sin(ang) * r * 0.78);
+        ctx.stroke();
+      }
+
+      // Ступица
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function cannonLength() {
+      return clamp(SCALE * 3.2, 36, 50);
+    }
+
+    function drawCannon() {
+      const a = angleRad();
+      const len = cannonLength();
+      const w = clamp(len * 0.42, 13, 19);
+      const wheelR = clamp(len * 0.24, 9, 12);
+      const ground = GROUND_Y;
+
+      // Лафет
+      const top = ground - len * 0.40;
+      ctx.beginPath();
+      ctx.moveTo(PIVOT_X - len * 0.62, ground);
+      ctx.lineTo(PIVOT_X + len * 0.58, ground);
+      ctx.lineTo(PIVOT_X + len * 0.40, top);
+      ctx.lineTo(PIVOT_X - len * 0.44, top);
+      ctx.closePath();
+      ctx.fillStyle = '#7c2d12';
+      ctx.fill();
+      ctx.strokeStyle = '#92400e';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Доски лафета
+      ctx.strokeStyle = 'rgba(69, 26, 3, .8)';
+      ctx.lineWidth = 1;
+      for (let i = 1; i <= 2; i++) {
+        const fy = ground - (len * 0.40) * i / 3;
+        ctx.beginPath();
+        ctx.moveTo(PIVOT_X - len * 0.54, fy);
+        ctx.lineTo(PIVOT_X + len * 0.50, fy);
+        ctx.stroke();
+      }
+
+      // Колёса
+      drawWheel(PIVOT_X - len * 0.40, ground - wheelR, wheelR);
+      drawWheel(PIVOT_X + len * 0.34, ground - wheelR, wheelR);
+
+      // Ствол
+      ctx.save();
+      ctx.translate(PIVOT_X, ground);
+      ctx.rotate(-a);
+
+      const grad = ctx.createLinearGradient(0, -w / 2, 0, w / 2);
+      grad.addColorStop(0, '#94a3b8');
+      grad.addColorStop(0.45, '#475569');
+      grad.addColorStop(1, '#1e293b');
+
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, -w / 2, len, w);
+
+      // Казённая часть
+      ctx.fillStyle = '#334155';
+      ctx.beginPath();
+      ctx.arc(0, 0, w * 0.62, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Дульный срез
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath();
+      ctx.ellipse(len, 0, w * 0.24, w / 2 + 1, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#0b1220';
+      ctx.beginPath();
+      ctx.ellipse(len, 0, w * 0.12, w / 2 - 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Блик на стволе
+      ctx.strokeStyle = 'rgba(226, 232, 240, .35)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(4, -w / 4);
+      ctx.lineTo(len - 7, -w / 4);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawAngleArc() {
+      const a = angleRad();
+      const r = cannonLength() + 20;
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(148, 163, 184, .55)';
+      ctx.lineWidth = 1.5;
+
+      // Направление горизонта
+      ctx.setLineDash([4, 5]);
+      ctx.beginPath();
+      ctx.moveTo(PIVOT_X, GROUND_Y - 1);
+      ctx.lineTo(PIVOT_X + r + 18, GROUND_Y - 1);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Дуга угла
+      ctx.beginPath();
+      ctx.arc(PIVOT_X, GROUND_Y, r, 0, -a, true);
+      ctx.stroke();
+
+      // Подпись угла
+      const mid = -a / 2;
+      const lx = PIVOT_X + Math.cos(mid) * (r + 16);
+      const ly = GROUND_Y + Math.sin(mid) * (r + 16);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`α = ${state.angle}°`, lx, ly);
+      ctx.restore();
+    }
+
+    function drawMuzzleFlash() {
+      if (!state.running || state.elapsed > 0.16) return;
+
+      const a = angleRad();
+      const len = cannonLength();
+      const mx = PIVOT_X + Math.cos(a) * len;
+      const my = GROUND_Y - Math.sin(a) * len;
+      const k = 1 - state.elapsed / 0.16;
+
+      ctx.save();
+
+      const glow = ctx.createRadialGradient(mx, my, 0, mx, my, 26);
+      glow.addColorStop(0, `rgba(254, 240, 138, ${0.9 * k})`);
+      glow.addColorStop(0.4, `rgba(245, 158, 11, ${0.55 * k})`);
+      glow.addColorStop(1, 'rgba(245, 158, 11, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(mx, my, 26, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = `rgba(253, 224, 71, ${0.85 * k})`;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 5; i++) {
+        const ang = (i / 5) * Math.PI * 2;
+        const r1 = 6;
+        const r2 = 12 + 8 * k;
+        ctx.beginPath();
+        ctx.moveTo(mx + Math.cos(ang) * r1, my + Math.sin(ang) * r1);
+        ctx.lineTo(mx + Math.cos(ang) * r2, my + Math.sin(ang) * r2);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawImpact() {
+      if (!state.finished) return;
+
+      const px = worldToX(flightRange());
+
+      ctx.save();
+
+      // Лучи пыли
+      ctx.strokeStyle = 'rgba(245, 158, 11, .85)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 7; i++) {
+        const ang = Math.PI + (i + 1) * Math.PI / 8;
+        const inner = 10;
+        const outer = 18 + (i % 2) * 6;
+        ctx.beginPath();
+        ctx.moveTo(
+          px + Math.cos(ang) * inner,
+          GROUND_Y + Math.sin(ang) * inner * 0.8
+        );
+        ctx.lineTo(
+          px + Math.cos(ang) * outer,
+          GROUND_Y + Math.sin(ang) * outer * 0.8
+        );
+        ctx.stroke();
+      }
+
+      // Пыль
+      ctx.fillStyle = 'rgba(245, 158, 11, .35)';
+      for (let i = 0; i < 4; i++) {
+        const dx = (i - 1.5) * 9;
+        ctx.beginPath();
+        ctx.arc(px + dx, GROUND_Y - 2 - (i % 2) * 4, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawRangeMarker() {
+      if (!state.finished) return;
+
+      const x1 = worldToX(0);
+      const x2 = worldToX(flightRange());
+      const y = GROUND_Y + 16;
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(245, 158, 11, .85)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x1, y - 5);
+      ctx.lineTo(x1, y + 5);
+      ctx.moveTo(x2, y - 5);
+      ctx.lineTo(x2, y + 5);
+      ctx.moveTo(x1, y);
+      ctx.lineTo(x2, y);
+      ctx.stroke();
+
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`L = ${formatMeters(flightRange())} м`, (x1 + x2) / 2, y - 4);
+      ctx.restore();
+    }
+
+    function drawApexMarker() {
+      if (!state.finished) return;
+
+      const H = maxHeight();
+      const px = worldToX(flightRange() / 2);
+      const py = worldToY(H);
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(96, 165, 250, .40)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 5]);
+      ctx.beginPath();
+      ctx.moveTo(AXIS_X, py);
+      ctx.lineTo(px, py);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = '#60a5fa';
+      ctx.beginPath();
+      ctx.arc(px, py, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`H = ${formatMeters(H)} м`, px, py - 8);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawGridLines();
+      drawPredictedPath();
+
+      drawTrail();
+      drawBall();
+      drawVelocityVector();
+
+      // Земля рисуется после ядра — его нижняя половина «уходит» в землю
+      drawGround();
+      drawImpact();
+
+      drawCannon();
+      drawAngleArc();
+      drawMuzzleFlash();
+
+      drawRangeMarker();
+      drawApexMarker();
+
+      drawAxisLabels();
+    }
+
+    // ─── 8. Показания и подсказка ─────────────────────
+    function updateReadout() {
+      outTime.textContent  = state.elapsed.toFixed(2);
+      outX.textContent     = state.x.toFixed(1);
+      outY.textContent     = state.y.toFixed(1);
+      outSpeed.textContent = state.speed.toFixed(1);
+    }
+
+    function updateHint() {
+      hint.textContent =
+        `При v₀ = ${state.speed0} м/с и α = ${state.angle}° ядро пролетит ` +
+        `${formatMeters(flightRange())} м за ${flightTime().toFixed(2)} с и поднимется ` +
+        `на ${formatMeters(maxHeight())} м (g = 9.8 м/с²).`;
+    }
+
+    // ─── 9. Главный цикл ──────────────────────────────
+    function loop(timestamp) {
+      if (!state.running || state.paused) return;
+
+      if (state.lastTimestamp === null) {
+        state.lastTimestamp = timestamp;
+      }
+
+      // Ограничиваем dt, чтобы после сворачивания вкладки ядро не «прыгало»
+      const dt = Math.min((timestamp - state.lastTimestamp) / 1000, 0.1);
+      state.lastTimestamp = timestamp;
+
+      state.elapsed += dt;
+
+      const T = flightTime();
+      const landed = state.elapsed >= T;
+      if (landed) state.elapsed = T;
+
+      updatePhysics();
+
+      // След и графики
+      const last = state.trail[state.trail.length - 1];
+      if (!last || Math.hypot(state.x - last.x, state.y - last.y) > 0.001) {
+        state.trail.push({ x: state.x, y: state.y });
+      }
+      pushChartPoints();
+
+      if (landed) {
+        state.running = false;
+        state.finished = true;
+        finish();
+        return;
+      }
+
+      draw();
+      updateReadout();
+
+      requestAnimationFrame(loop);
+    }
+
+    // ─── 10. Кнопки ───────────────────────────────────
+    function start() {
+      if (state.running && !state.paused) return;
+      if (state.finished) reset();
+
+      state.running = true;
+      state.paused = false;
+      state.lastTimestamp = null;
+      btnStart.disabled = true;
+      btnPause.disabled = false;
+      btnPause.textContent = '⏸ Пауза';
+      requestAnimationFrame(loop);
+    }
+
+    function pauseToggle() {
+      if (!state.running) return;
+
+      if (state.paused) {
+        state.paused = false;
+        state.lastTimestamp = null;
+        btnPause.textContent = '⏸ Пауза';
+        requestAnimationFrame(loop);
+      } else {
+        state.paused = true;
+        btnPause.textContent = '▶ Продолжить';
+      }
+    }
+
+    function reset() {
+      state.running = false;
+      state.paused = false;
+      state.finished = false;
+      state.elapsed = 0;
+      state.lastTimestamp = null;
+      state.trail = [];
+
+      updateView();
+      updatePhysics();
+
+      btnStart.disabled = false;
+      btnStart.textContent = '🔥 Выстрелить';
+      btnPause.disabled = true;
+      btnPause.textContent = '⏸ Пауза';
+
+      if (chartPath) {
+        chartPath.data.datasets[0].data = [];
+        chartVelocity.data.datasets[0].data = [];
+        chartVelocity.data.datasets[1].data = [];
+        applyChartAxes();
+      }
+
+      updateHint();
+      draw();
+      updateReadout();
+    }
+
+    function finish() {
+      btnStart.disabled = false;
+      btnStart.textContent = '🔥 Выстрелить';
+      btnPause.disabled = true;
+      btnPause.textContent = '⏸ Пауза';
+
+      draw();
+      updateReadout();
+    }
+
+    // ─── 11. Ползунки и пресеты ───────────────────────
+    speedInput.addEventListener('input', (e) => {
+      state.speed0 = parseFloat(e.target.value);
+      speedOut.textContent = `${state.speed0} м/с`;
+      reset();
+    });
+
+    angleInput.addEventListener('input', (e) => {
+      state.angle = parseFloat(e.target.value);
+      angleOut.textContent = `${state.angle}°`;
+      reset();
+    });
+
+    presets.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const angle = parseInt(btn.dataset.angle, 10);
+        state.angle = angle;
+        angleInput.value = angle;
+        angleOut.textContent = `${angle}°`;
+        reset();
+      });
+    });
+
+    btnStart.addEventListener('click', start);
+    btnPause.addEventListener('click', pauseToggle);
+    btnReset.addEventListener('click', reset);
+
+    // ─── 12. Старт ────────────────────────────────────
+    initCharts();
+    reset();
+  </script>
+</body>
+</html>

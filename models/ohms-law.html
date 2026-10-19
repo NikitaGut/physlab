@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Закон Ома — PhysLab</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .model-page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1rem 4rem;
+    }
+    .back-link {
+      display: inline-block;
+      color: var(--muted);
+      text-decoration: none;
+      margin-bottom: 1rem;
+      font-size: .9rem;
+    }
+    .back-link:hover { color: var(--accent-hi); }
+
+    .model-page h1 { margin: 0 0 .5rem; }
+    .model-page .lead { color: var(--muted); margin-top: 0; }
+
+    .stage {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin: 1.5rem 0;
+    }
+    .stage canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #0b1220;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .readout {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: .75rem;
+      margin-top: 1rem;
+    }
+    .readout-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem 1rem;
+    }
+    .readout-label { font-size: .8rem; color: var(--muted); }
+    .readout-value {
+      font-size: 1.3rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-hi);
+    }
+    .readout-unit { font-size: .9rem; color: var(--muted); margin-left: .2rem; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: .5rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .slider-row label { grid-column: 1 / -1; color: var(--muted); font-size: .9rem; }
+    .slider-row input[type="range"] { width: 100%; accent-color: var(--accent); }
+    .slider-row output {
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-hi);
+      font-weight: 600;
+      min-width: 5rem;
+      text-align: right;
+    }
+
+    .buttons { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: .5rem; }
+    .btn {
+      padding: .65rem 1.25rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .hint { color: var(--muted); font-size: .9rem; margin: 1rem 0 0; }
+
+    /* ── Графики ────────────────────────── */
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+    .charts[hidden] { display: none; }
+    .chart-container {
+      position: relative;
+      height: 280px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+
+    .formula-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+    .formula {
+      font-size: 1.3rem;
+      text-align: center;
+      margin: 1rem 0;
+      color: var(--accent-hi);
+      font-family: "Cambria Math", Georgia, serif;
+    }
+    .formula + .formula { margin-top: -.25rem; }
+    .formula-box p { color: var(--muted); margin: .5rem 0 0; }
+
+    @media (max-width: 720px) {
+      .charts { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="model-page">
+    <a href="../index.html" class="back-link">← Все модели</a>
+
+    <h1>🔌 Закон Ома</h1>
+    <p class="lead">Меняй напряжение и сопротивление — смотри, как меняется сила тока.</p>
+
+    <!-- Управление -->
+    <div class="panel">
+      <div class="slider-row">
+        <label for="voltage">Напряжение U</label>
+        <input type="range" id="voltage" min="1" max="24" step="1" value="6">
+        <output for="voltage" id="voltage-out">6 В</output>
+      </div>
+
+      <div class="slider-row">
+        <label for="resistance">Сопротивление R</label>
+        <input type="range" id="resistance" min="1" max="20" step="0.5" value="2">
+        <output for="resistance" id="resistance-out">2.0 Ом</output>
+      </div>
+
+      <div class="buttons">
+        <button class="btn" id="btn-reset">↺ Сброс</button>
+      </div>
+
+      <p class="hint" id="hint"></p>
+    </div>
+
+    <!-- Сцена -->
+    <div class="stage">
+      <canvas id="canvas" width="860" height="380"></canvas>
+
+      <div class="readout">
+        <div class="readout-item">
+          <div class="readout-label">Напряжение U</div>
+          <div><span class="readout-value" id="out-U">6</span><span class="readout-unit">В</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Сопротивление R</div>
+          <div><span class="readout-value" id="out-R">2.0</span><span class="readout-unit">Ом</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Сила тока I</div>
+          <div><span class="readout-value" id="out-I">3.00</span><span class="readout-unit">А</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Мощность P</div>
+          <div><span class="readout-value" id="out-P">18.0</span><span class="readout-unit">Вт</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Графики -->
+    <div class="charts" id="charts">
+      <div class="chart-container"><canvas id="chart-u"></canvas></div>
+      <div class="chart-container"><canvas id="chart-r"></canvas></div>
+    </div>
+
+    <!-- Теория -->
+    <div class="formula-box">
+      <div class="formula">I = U / R &nbsp;&nbsp;&nbsp; U = I·R &nbsp;&nbsp;&nbsp; R = U / I</div>
+      <div class="formula">P = U·I = I²·R = U²/R</div>
+      <p>
+        Сила тока прямо пропорциональна напряжению и обратно пропорциональна
+        сопротивлению: увеличил напряжение вдвое — ток вырос вдвое, увеличил
+        сопротивление вдвое — ток упал вдвое. Единица сопротивления — ом:
+        1 Ом = 1 В / 1 А. Мощность <em>P</em> показывает, сколько энергии
+        выделяется на резисторе за секунду, поэтому чем она больше, тем ярче
+        светится спираль. В этой модели сопротивление постоянное; у лампы
+        накаливания оно, вообще говоря, зависит от температуры.
+      </p>
+    </div>
+  </main>
+
+  <script>
+    // ─── 1. Константы сцены и диапазоны ───────────────
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const LEFT = 180;                 // контур цепи
+    const TOP = 90;
+    const RIGHT = 680;
+    const BOTTOM = 290;
+    const W = RIGHT - LEFT;           // 500
+    const H = BOTTOM - TOP;           // 200
+    const PERIMETER = 2 * (W + H);    // 1400
+
+    const UMAX = 24;                  // максимум напряжения, В
+    const RMIN = 1;                   // минимум сопротивления, Ом
+    const RMAX = 20;
+    const IMAX = UMAX / RMIN;         // 24 А — предел шкалы амперметра
+
+    const BG = '#0b1220';
+
+    // ─── 2. Состояние ─────────────────────────────────
+    const state = {
+      U: 6,                 // напряжение, В
+      R: 2,                 // сопротивление, Ом
+      phase: 0,             // фаза бегущих точек тока, px
+      needleI: 3,           // плавно движущаяся стрелка амперметра
+      glow: 0.3,            // плавное свечение резистора, 0…1
+      lastTimestamp: null
+    };
+
+    function current() {
+      return state.U / state.R;
+    }
+
+    function power() {
+      return state.U * current();
+    }
+
+    function powerGlow() {
+      return Math.min(1, power() / 60);
+    }
+
+    // ─── 3. Элементы UI ───────────────────────────────
+    const voltageInput = document.getElementById('voltage');
+    const voltageOut   = document.getElementById('voltage-out');
+    const resistanceInput = document.getElementById('resistance');
+    const resistanceOut   = document.getElementById('resistance-out');
+    const hint       = document.getElementById('hint');
+    const outU       = document.getElementById('out-U');
+    const outR       = document.getElementById('out-R');
+    const outI       = document.getElementById('out-I');
+    const outP       = document.getElementById('out-P');
+    const btnReset   = document.getElementById('btn-reset');
+
+    // ─── 4. Графики ───────────────────────────────────
+    let chartU = null;   // I(U) при фиксированном R
+    let chartR = null;   // I(R) при фиксированном U
+
+    const AXIS_COLOR = '#94a3b8';
+    const TICK_COLOR = '#64748b';
+    const GRID_COLOR = '#1e293b';
+
+    function niceStep(range) {
+      const raw = range / 5;
+      const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+      const n = raw / pow;
+      const mult = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+      return mult * pow;
+    }
+
+    function niceMax(value, step) {
+      return step * Math.ceil(value / step);
+    }
+
+    // Оси графиков фиксированы: так видно, как меняется наклон I(U)
+    // при изменении R и как масштабируется гипербола I(R) при изменении U.
+    // По вертикали — весь возможный диапазон тока: 0…IMAX.
+
+    function uxStep() { return niceStep(UMAX); }
+    function uxMax()  { return niceMax(UMAX * 1.02, uxStep()); }
+    function uyStep() { return niceStep(IMAX); }
+    function uyMax()  { return niceMax(IMAX * 1.02, uyStep()); }
+
+    function rxStep() { return 5; }
+    function rxMax()  { return RMAX; }
+    function ryStep() { return niceStep(IMAX); }
+    function ryMax()  { return niceMax(IMAX * 1.02, ryStep()); }
+
+    function chartOptions(xTitle, yTitle, xMax, xStep, yMax, yStep) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        parsing: false,
+        normalized: true,
+        locale: 'en-US',   // десятичные точки, как в показаниях
+        plugins: {
+          legend: {
+            labels: {
+              color: AXIS_COLOR,
+              // в легенде — только линия, без служебной «рабочей точки»
+              filter: (item) => item.datasetIndex === 0
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            min: 0,
+            max: xMax,
+            title: { display: true, text: xTitle, color: AXIS_COLOR },
+            ticks: { color: TICK_COLOR, stepSize: xStep },
+            grid: { color: GRID_COLOR }
+          },
+          y: {
+            min: 0,
+            max: yMax,
+            title: { display: true, text: yTitle, color: AXIS_COLOR },
+            ticks: { color: TICK_COLOR, stepSize: yStep },
+            grid: { color: GRID_COLOR }
+          }
+        }
+      };
+    }
+
+    function curveDataset(label, color, fill) {
+      return {
+        label,
+        data: [],
+        borderColor: color,
+        backgroundColor: fill,
+        borderWidth: 2.5,
+        fill: !!fill,
+        tension: 0,
+        pointRadius: 0
+      };
+    }
+
+    function pointDataset() {
+      return {
+        label: 'Рабочая точка',
+        data: [],
+        showLine: false,
+        clip: false,          // точка у края (R = 20) не должна обрезаться
+        borderWidth: 0,
+        backgroundColor: '#f59e0b',
+        borderColor: '#f59e0b',
+        pointRadius: 6,
+        pointHoverRadius: 7
+      };
+    }
+
+    function initCharts() {
+      // Если Chart.js не загрузился (нет интернета), сцена всё равно работает
+      if (typeof Chart === 'undefined') {
+        document.getElementById('charts').hidden = true;
+        return;
+      }
+
+      chartU = new Chart(document.getElementById('chart-u').getContext('2d'), {
+        type: 'line',
+        data: {
+          datasets: [
+            curveDataset('I(U)', '#3b82f6', 'rgba(59, 130, 246, .10)'),
+            pointDataset()
+          ]
+        },
+        options: chartOptions(
+          'Напряжение U, В', 'Сила тока I, А',
+          uxMax(), uxStep(), uyMax(), uyStep()
+        )
+      });
+
+      chartR = new Chart(document.getElementById('chart-r').getContext('2d'), {
+        type: 'line',
+        data: {
+          datasets: [
+            curveDataset('I(R)', '#22c55e', null),
+            pointDataset()
+          ]
+        },
+        options: chartOptions(
+          'Сопротивление R, Ом', 'Сила тока I, А',
+          rxMax(), rxStep(), ryMax(), ryStep()
+        )
+      });
+    }
+
+    function applyChartAxes() {
+      if (!chartU) return;
+
+      chartU.options.scales.x.max = uxMax();
+      chartU.options.scales.x.ticks.stepSize = uxStep();
+      chartU.options.scales.y.max = uyMax();
+      chartU.options.scales.y.ticks.stepSize = uyStep();
+
+      chartR.options.scales.x.max = rxMax();
+      chartR.options.scales.x.ticks.stepSize = rxStep();
+      chartR.options.scales.y.max = ryMax();
+      chartR.options.scales.y.ticks.stepSize = ryStep();
+    }
+
+    function updateCharts() {
+      if (!chartU) return;
+
+      const I = current();
+
+      // I(U) при текущем R — прямая из начала координат
+      const uPoints = [];
+      for (let i = 0; i <= 48; i++) {
+        const u = (UMAX * i) / 48;
+        uPoints.push({ x: u, y: u / state.R });
+      }
+      chartU.data.datasets[0].data = uPoints;
+      chartU.data.datasets[0].label = `I(U), R = ${state.R.toFixed(1)} Ом`;
+      chartU.data.datasets[1].data = [{ x: state.U, y: I }];
+
+      // I(R) при текущем U — гипербола
+      const rPoints = [];
+      for (let r = RMIN; r <= RMAX + 1e-9; r += 0.1) {
+        rPoints.push({ x: r, y: state.U / r });
+      }
+      chartR.data.datasets[0].data = rPoints;
+      chartR.data.datasets[0].label = `I(R), U = ${state.U.toFixed(0)} В`;
+      chartR.data.datasets[1].data = [{ x: state.R, y: I }];
+
+      applyChartAxes();
+      chartU.update('none');
+      chartR.update('none');
+    }
+
+    // ─── 5. Вспомогательные функции сцены ─────────────
+    function roundedRectPath(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.arcTo(x + w, y, x + w, y + r, r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+      ctx.lineTo(x + r, y + h);
+      ctx.arcTo(x, y + h, x, y + h - r, r);
+      ctx.lineTo(x, y + r);
+      ctx.arcTo(x, y, x + r, y, r);
+      ctx.closePath();
+    }
+
+    // Точка на контуре цепи: d — расстояние в пикселях по часовой стрелке
+    function pointOnLoop(d) {
+      d = ((d % PERIMETER) + PERIMETER) % PERIMETER;
+
+      if (d < W) return { x: LEFT + d, y: TOP };           // верх: слева направо
+      d -= W;
+      if (d < H) return { x: RIGHT, y: TOP + d };          // право: сверху вниз
+      d -= H;
+      if (d < W) return { x: RIGHT - d, y: BOTTOM };       // низ: справа налево
+      d -= W;
+      return { x: LEFT, y: BOTTOM - d };                   // лево: снизу вверх
+    }
+
+    function currentSpeed(I) {
+      return Math.min(280, 35 + 18 * I);
+    }
+
+    // ─── 6. Отрисовка сцены ───────────────────────────
+    function drawBackdrop() {
+      // Едва заметная «миллиметровка»
+      ctx.save();
+      ctx.strokeStyle = 'rgba(148, 163, 184, .045)';
+      ctx.lineWidth = 1;
+      for (let x = 20; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 20; y < canvas.height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawWires() {
+      ctx.save();
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 6;
+      roundedRectPath(LEFT, TOP, W, H, 14);
+      ctx.stroke();
+
+      // Лёгкий блик внутри провода
+      ctx.strokeStyle = 'rgba(148, 163, 184, .22)';
+      ctx.lineWidth = 1.5;
+      roundedRectPath(LEFT, TOP, W, H, 14);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawCurrentDots() {
+      const count = Math.round(PERIMETER / 54);
+      const spacing = PERIMETER / count;
+
+      ctx.save();
+      ctx.fillStyle = '#fbbf24';
+      ctx.shadowColor = 'rgba(251, 191, 36, .8)';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+
+      for (let i = 0; i < count; i++) {
+        const p = pointOnLoop(state.phase + i * spacing);
+        ctx.moveTo(p.x + 4, p.y);
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      }
+
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawBattery() {
+      const cy = (TOP + BOTTOM) / 2;
+
+      // Разрыв провода между пластинами, чтобы не было короткого замыкания
+      ctx.fillStyle = BG;
+      ctx.fillRect(LEFT - 6, cy - 10, 12, 20);
+
+      ctx.save();
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineCap = 'round';
+
+      // Длинная пластина «+» сверху
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(LEFT - 26, cy - 12);
+      ctx.lineTo(LEFT + 26, cy - 12);
+      ctx.stroke();
+
+      // Короткая пластина «−» снизу
+      ctx.beginPath();
+      ctx.moveTo(LEFT - 14, cy + 12);
+      ctx.lineTo(LEFT + 14, cy + 12);
+      ctx.stroke();
+      ctx.restore();
+
+      // Знаки полюсов
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('+', LEFT + 34, cy - 12);
+      ctx.fillText('−', LEFT + 34, cy + 12);
+
+      // Напряжение
+      ctx.fillStyle = '#60a5fa';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`U = ${state.U} В`, LEFT - 38, cy);
+    }
+
+    function drawResistor() {
+      const cx = (LEFT + RIGHT) / 2;
+      const cy = TOP;
+      const boxW = 110;
+      const boxH = 36;
+
+      // Корпус резистора (закрывает провод)
+      ctx.save();
+      roundedRectPath(cx - boxW / 2, cy - boxH / 2, boxW, boxH, 8);
+      ctx.fillStyle = '#0f172a';
+      ctx.fill();
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      // Свечение от мощности
+      const glow = state.glow;
+      if (glow > 0.02) {
+        ctx.save();
+        const halo = ctx.createRadialGradient(cx, cy, 8, cx, cy, 78);
+        halo.addColorStop(0, `rgba(245, 158, 11, ${0.22 * glow})`);
+        halo.addColorStop(1, 'rgba(245, 158, 11, 0)');
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 78, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Спираль
+      const x0 = cx - boxW / 2 + 16;
+      const x1 = cx + boxW / 2 - 16;
+      const amp = 9;
+      const segments = 6;
+
+      ctx.save();
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = `rgba(245, 158, 11, ${0.25 + 0.65 * glow})`;
+      ctx.shadowBlur = 4 + 26 * glow;
+      ctx.beginPath();
+      ctx.moveTo(x0, cy);
+
+      for (let i = 1; i <= segments; i++) {
+        const px = x0 + ((x1 - x0) * i) / segments;
+        const py = i === segments ? cy : cy + (i % 2 ? -amp : amp);
+        ctx.lineTo(px, py);
+      }
+
+      ctx.stroke();
+      ctx.restore();
+
+      // Подпись
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`R = ${state.R.toFixed(1)} Ом`, cx, cy - boxH / 2 - 12);
+    }
+
+    function drawAmmeter() {
+      const cx = RIGHT;
+      const cy = (TOP + BOTTOM) / 2;
+      const radius = 40;
+
+      // Корпус прибора
+      ctx.save();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.restore();
+
+      // Буква A
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('A', cx, cy - radius + 15);
+
+      // Шкала
+      const pivotX = cx;
+      const pivotY = cy + 18;
+      const dialR = 28;
+      const a0 = Math.PI * (200 / 180);
+      const a1 = Math.PI * (340 / 180);
+
+      ctx.save();
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(pivotX, pivotY, dialR, a0, a1);
+      ctx.stroke();
+
+      // Деления
+      for (let i = 0; i <= 4; i++) {
+        const ang = a0 + ((a1 - a0) * i) / 4;
+        ctx.beginPath();
+        ctx.moveTo(
+          pivotX + Math.cos(ang) * (dialR - 5),
+          pivotY + Math.sin(ang) * (dialR - 5)
+        );
+        ctx.lineTo(
+          pivotX + Math.cos(ang) * dialR,
+          pivotY + Math.sin(ang) * dialR
+        );
+        ctx.stroke();
+      }
+
+      // Стрелка
+      const f = Math.min(1, Math.max(0, state.needleI / IMAX));
+      const na = a0 + (a1 - a0) * f;
+
+      ctx.strokeStyle = '#f87171';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(pivotX, pivotY);
+      ctx.lineTo(
+        pivotX + Math.cos(na) * dialR * 0.92,
+        pivotY + Math.sin(na) * dialR * 0.92
+      );
+      ctx.stroke();
+
+      ctx.fillStyle = '#f87171';
+      ctx.beginPath();
+      ctx.arc(pivotX, pivotY, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Показание
+      ctx.fillStyle = '#60a5fa';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`I = ${current().toFixed(2)} А`, cx + radius + 16, cy);
+    }
+
+    function drawDirectionArrows() {
+      function arrow(x, y, dir) {
+        const size = 8;
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(dir) * size, y + Math.sin(dir) * size);
+        ctx.lineTo(x - Math.cos(dir) * size * 0.7, y - size * 0.7);
+        ctx.lineTo(x - Math.cos(dir) * size * 0.7, y + size * 0.7);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      ctx.save();
+      ctx.fillStyle = '#fbbf24';
+
+      // Верхний провод: ток идёт вправо
+      arrow(320, TOP, 0);
+      // Нижний провод: ток идёт влево
+      arrow(600, BOTTOM, Math.PI);
+
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('I', 320, TOP - 16);
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawBackdrop();
+      drawWires();
+      drawCurrentDots();
+      drawBattery();
+      drawResistor();
+      drawAmmeter();
+      drawDirectionArrows();
+    }
+
+    // ─── 7. Показания и подсказка ─────────────────────
+    function updateReadout() {
+      outU.textContent = state.U.toFixed(0);
+      outR.textContent = state.R.toFixed(1);
+      outI.textContent = current().toFixed(2);
+      outP.textContent = power().toFixed(1);
+    }
+
+    function updateHint() {
+      hint.textContent =
+        `При U = ${state.U.toFixed(0)} В и R = ${state.R.toFixed(1)} Ом сила тока ` +
+        `I = ${current().toFixed(2)} А, мощность P = ${power().toFixed(1)} Вт.`;
+    }
+
+    // ─── 8. Анимация ──────────────────────────────────
+    function animate(timestamp) {
+      if (state.lastTimestamp === null) {
+        state.lastTimestamp = timestamp;
+      }
+
+      const dt = Math.min((timestamp - state.lastTimestamp) / 1000, 0.05);
+      state.lastTimestamp = timestamp;
+
+      const I = current();
+      state.phase = (state.phase + currentSpeed(I) * dt) % PERIMETER;
+
+      const k = 1 - Math.exp(-dt * 9);
+      state.needleI += (I - state.needleI) * k;
+      state.glow += (powerGlow() - state.glow) * k;
+
+      draw();
+      requestAnimationFrame(animate);
+    }
+
+    // ─── 9. Обновление всего ──────────────────────────
+    function updateAll() {
+      updateReadout();
+      updateHint();
+      updateCharts();
+    }
+
+    function reset() {
+      state.U = 6;
+      state.R = 2;
+      voltageInput.value = 6;
+      resistanceInput.value = 2;
+      voltageOut.textContent = '6 В';
+      resistanceOut.textContent = '2.0 Ом';
+
+      state.needleI = current();
+      state.glow = powerGlow();
+
+      updateAll();
+      draw();
+    }
+
+    // ─── 10. Ползунки и кнопка ────────────────────────
+    voltageInput.addEventListener('input', (e) => {
+      state.U = parseFloat(e.target.value);
+      voltageOut.textContent = `${state.U.toFixed(0)} В`;
+      updateAll();
+    });
+
+    resistanceInput.addEventListener('input', (e) => {
+      state.R = parseFloat(e.target.value);
+      resistanceOut.textContent = `${state.R.toFixed(1)} Ом`;
+      updateAll();
+    });
+
+    btnReset.addEventListener('click', reset);
+
+    // ─── 11. Старт ────────────────────────────────────
+    initCharts();
+    updateAll();
+    draw();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

@@ -125,6 +125,17 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 1rem 4rem; }
 
 /* ── Футер ────────────────────────── */
 footer { text-align: center; padding: 2rem; color: var(--muted); font-size: .85rem; }
+.footer-feedback {
+  max-width: 620px;
+  margin: 0 auto .8rem;
+  line-height: 1.6;
+}
+.footer-feedback a {
+  color: var(--accent-hi);
+  text-decoration: none;
+}
+.footer-feedback a:hover { text-decoration: underline; }
+footer p { margin: .25rem 0; }
 
 /* ── Адаптив ──────────────────────── */
 @media (max-width: 480px) {

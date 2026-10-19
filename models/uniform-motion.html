@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Равномерное движение — PhysLab</title>
   <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
   <style>
-    /* ── Стили именно этой модели ───────────────── */
     .model-page {
       max-width: 900px;
       margin: 0 auto;
@@ -31,13 +31,13 @@
       padding: 1rem;
       margin: 1.5rem 0;
     }
-    canvas {
+    .stage canvas {
       display: block;
       width: 100%;
       height: auto;
       background: #0b1220;
       border-radius: 8px;
-      overflow: hidden; 
+      overflow: hidden;
     }
 
     .readout {
@@ -60,7 +60,6 @@
     }
     .readout-unit { font-size: .9rem; color: var(--muted); margin-left: .2rem; }
 
-    /* ── Панель управления ──────────────── */
     .panel {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -81,7 +80,7 @@
       font-variant-numeric: tabular-nums;
       color: var(--accent-hi);
       font-weight: 600;
-      min-width: 3.5rem;
+      min-width: 4rem;
       text-align: right;
     }
 
@@ -101,7 +100,28 @@
     .btn.primary:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
     .btn:disabled { opacity: .4; cursor: not-allowed; }
 
-    /* ── Формула ────────────────────────── */
+    .chart-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin: 1.5rem 0;
+      position: relative;
+      height: 280px;
+    }
+    .chart-container[hidden] { display: none; }
+    .chart-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: .85rem;
+      pointer-events: none;
+    }
+    #chart-path { background: transparent; border-radius: 0; }
+
     .formula-box {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -129,8 +149,8 @@
     <div class="panel">
       <div class="slider-row">
         <label for="speed">Скорость v</label>
-        <input type="range" id="speed" min="1" max="20" step="0.5" value="5">
-        <output for="speed" id="speed-out">5 м/с</output>
+        <input type="range" id="speed" min="1" max="20" step="0.5" value="10">
+        <output for="speed" id="speed-out">10 м/с</output>
       </div>
 
       <div class="buttons">
@@ -142,8 +162,7 @@
 
     <!-- Сцена -->
     <div class="stage">
-      <!-- Высота увеличена до 260, чтобы всё влезло -->
-      <canvas id="canvas" width="860" height="260"></canvas>
+      <canvas id="canvas" width="860" height="320"></canvas>
 
       <div class="readout">
         <div class="readout-item">
@@ -156,9 +175,15 @@
         </div>
         <div class="readout-item">
           <div class="readout-label">Скорость v</div>
-          <div><span class="readout-value" id="out-speed">5.0</span><span class="readout-unit">м/с</span></div>
+          <div><span class="readout-value" id="out-speed">10.0</span><span class="readout-unit">м/с</span></div>
         </div>
       </div>
+    </div>
+
+    <!-- График -->
+    <div class="chart-container" id="chart-box">
+      <div class="chart-loading" id="chart-loading">Загрузка графика…</div>
+      <canvas id="chart-path"></canvas>
     </div>
 
     <!-- Теория -->
@@ -167,7 +192,8 @@
       <p>
         При равномерном движении тело за каждую секунду проходит одинаковый путь.
         Пройденный путь прямо пропорционален времени: чем больше времени прошло,
-        тем больше расстояние. Скорость <em>v</em> при этом не меняется.
+        тем больше расстояние. Скорость <em>v</em> при этом не меняется, поэтому
+        график пути <em>s</em>(<em>t</em>) — прямая линия, а её наклон равен скорости.
       </p>
     </div>
   </main>
@@ -177,21 +203,30 @@
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
 
-    const PADDING_X = 30; 
+    const PADDING_X = 40;
     const SCENE_METERS = 100;
-    // Полезная ширина: 860 - 60 = 800 px
-    const PX_PER_METER = (canvas.width - PADDING_X * 2) / SCENE_METERS; 
+    const PX_PER_METER = (canvas.width - PADDING_X * 2) / SCENE_METERS;
 
-    // ─── 2. Состояние симуляции ───────────────────────
+    const START_X = PADDING_X;
+    const FINISH_X = PADDING_X + SCENE_METERS * PX_PER_METER;
+
+    const ROAD_Y = 214;
+    const ROAD_H = 54;
+    const CAR_BASE = ROAD_Y + ROAD_H - 12;
+
+    const CHART_INTERVAL = 0.05;
+
+    // ─── 2. Состояние ─────────────────────────────────
     const state = {
-      running: false,        
-      paused: false,         
-      speed: 5,              
-      elapsed: 0,            
-      lastTimestamp: null,   
-      finished: false,       
-      pathBase: 0,           
-      timeBase: 0            
+      running: false,
+      paused: false,
+      speed: 10,
+      elapsed: 0,
+      pathBase: 0,
+      timeBase: 0,
+      finished: false,
+      lastTimestamp: null,
+      lastChartTime: -1
     };
 
     // ─── 3. Элементы UI ───────────────────────────────
@@ -204,76 +239,349 @@
     const btnPause   = document.getElementById('btn-pause');
     const btnReset   = document.getElementById('btn-reset');
 
-    // ─── 4. Вспомогательная функция: путь в метрах ────
+    // ─── 4. Путь и координата машины ──────────────────
     function currentPath() {
-      const { elapsed, speed, pathBase, timeBase } = state;
-      return Math.min(pathBase + speed * (elapsed - timeBase), SCENE_METERS);
+      const path = state.pathBase + state.speed * (state.elapsed - state.timeBase);
+      return Math.min(path, SCENE_METERS);
     }
 
-    // ─── 5. Отрисовка сцены ───────────────────────────
-    function draw() {
-      const pathMeters = currentPath();
-      const x = PADDING_X + pathMeters * PX_PER_METER;
+    function carX() {
+      return START_X + currentPath() * PX_PER_METER;
+    }
 
-      // Очистка
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // ─── 5. График s(t) ───────────────────────────────
+    let chartPath = null;
 
-      // «Дорога» внизу. Сдвигаем её чуть выше (canvas.height - 90), 
-      // чтобы под ней осталось место для текста.
-      const roadY = canvas.height - 90;
+    const AXIS_COLOR = '#94a3b8';
+    const TICK_COLOR = '#64748b';
+    const GRID_COLOR = '#1e293b';
+
+    function niceStep(range) {
+      const raw = range / 5;
+      const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+      const n = raw / pow;
+      const mult = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+      return mult * pow;
+    }
+
+    function niceMax(value, step) {
+      return step * Math.ceil(value / step);
+    }
+
+    function applyChartAxes() {
+      if (!chartPath) return;
+
+      const raw = Math.max(10, state.elapsed * 1.15);
+      const step = niceStep(raw);
+
+      chartPath.options.scales.x.max = niceMax(raw, step);
+      chartPath.options.scales.x.ticks.stepSize = step;
+    }
+
+    function initChart() {
+      // Если Chart.js не загрузился, сцена всё равно работает
+      if (typeof Chart === 'undefined') {
+        document.getElementById('chart-box').hidden = true;
+        return;
+      }
+
+      chartPath = new Chart(document.getElementById('chart-path').getContext('2d'), {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'Путь s(t), м',
+            data: [],
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, .10)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          parsing: false,
+          normalized: true,
+          locale: 'en-US',
+          plugins: {
+            legend: { labels: { color: AXIS_COLOR } }
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              min: 0,
+              max: 10,
+              title: { display: true, text: 'Время t, с', color: AXIS_COLOR },
+              ticks: { color: TICK_COLOR, stepSize: 2 },
+              grid: { color: GRID_COLOR }
+            },
+            y: {
+              min: 0,
+              max: SCENE_METERS,
+              title: { display: true, text: 'Путь s, м', color: AXIS_COLOR },
+              ticks: { color: TICK_COLOR, stepSize: 20 },
+              grid: { color: GRID_COLOR }
+            }
+          }
+        }
+      });
+
+      const loading = document.getElementById('chart-loading');
+      if (loading) loading.remove();
+    }
+
+    function pushChartPoint(force) {
+      if (!chartPath) return;
+      if (!force && state.elapsed - state.lastChartTime < CHART_INTERVAL) return;
+
+      state.lastChartTime = state.elapsed;
+      chartPath.data.datasets[0].data.push({ x: state.elapsed, y: currentPath() });
+      applyChartAxes();
+      chartPath.update('none');
+    }
+
+    function resetChart() {
+      if (!chartPath) return;
+
+      chartPath.data.datasets[0].data = [];
+      state.lastChartTime = -1;
+      applyChartAxes();
+      chartPath.update('none');
+    }
+
+    // ─── 6. Отрисовка сцены ───────────────────────────
+    function drawBackdrop() {
+      ctx.fillStyle = '#0b1220';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(148, 163, 184, .04)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= canvas.height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Полупрозрачная формула на фоне
+      ctx.save();
+      ctx.font = 'italic 34px "Cambria Math", Georgia, serif';
+      ctx.fillStyle = 'rgba(96, 165, 250, .13)';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('s = v · t', canvas.width / 2, 62);
+      ctx.restore();
+    }
+
+    function drawRuler() {
+      const y = ROAD_Y - 10;
+
+      ctx.save();
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+
+      ctx.beginPath();
+      ctx.moveTo(START_X, y);
+      ctx.lineTo(FINISH_X, y);
+      ctx.stroke();
+
+      ctx.font = '11px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+
+      for (let m = 0; m <= SCENE_METERS; m += 20) {
+        const x = START_X + m * PX_PER_METER;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y + 6);
+        ctx.stroke();
+
+        ctx.fillStyle = '#64748b';
+        ctx.fillText(String(m), x, y - 4);
+      }
+
+      // Старт и финиш
+      ctx.font = 'bold 12px system-ui, sans-serif';
+      ctx.fillStyle = '#22c55e';
+      ctx.fillText('Старт', START_X, y - 24);
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillText('Финиш', FINISH_X, y - 24);
+
+      ctx.restore();
+    }
+
+    function drawRoad() {
+      ctx.save();
+
       ctx.fillStyle = '#1a2438';
-      ctx.fillRect(PADDING_X, roadY, canvas.width - PADDING_X * 2, 40);
+      ctx.fillRect(START_X, ROAD_Y, FINISH_X - START_X, ROAD_H);
 
-      // Пунктирная разметка
+      // Кромка дороги
+      ctx.fillStyle = '#162033';
+      ctx.fillRect(START_X, ROAD_Y + ROAD_H - 10, FINISH_X - START_X, 10);
+
       ctx.strokeStyle = '#334155';
       ctx.lineWidth = 2;
-      ctx.setLineDash([12, 12]);
       ctx.beginPath();
-      ctx.moveTo(PADDING_X, roadY + 20);
-      ctx.lineTo(canvas.width - PADDING_X, roadY + 20);
+      ctx.moveTo(START_X, ROAD_Y);
+      ctx.lineTo(FINISH_X, ROAD_Y);
+      ctx.stroke();
+
+      // Разметка по центру
+      ctx.strokeStyle = '#3b4a61';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([16, 14]);
+      ctx.beginPath();
+      ctx.moveTo(START_X, ROAD_Y + ROAD_H / 2);
+      ctx.lineTo(FINISH_X, ROAD_Y + ROAD_H / 2);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Машинка (отражаем по горизонтали)
-      const carY = roadY - 8;
+      ctx.restore();
+    }
+
+    function drawStartFinish() {
       ctx.save();
-      ctx.translate(x, carY);
-      ctx.scale(-1, 1);       
-      ctx.font = '40px serif';
+
+      // Стартовая линия
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(START_X, ROAD_Y);
+      ctx.lineTo(START_X, ROAD_Y + ROAD_H);
+      ctx.stroke();
+
+      // Клетчатый финиш
+      const size = 6;
+      const cols = 2;
+      const rows = Math.floor(ROAD_H / size);
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          ctx.fillStyle = (row + col) % 2 ? '#e2e8f0' : '#1e293b';
+          ctx.fillRect(
+            FINISH_X - size + col * size,
+            ROAD_Y + row * size,
+            size,
+            size
+          );
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function drawPathLine() {
+      const path = currentPath();
+      if (path < 0.5) return;
+
+      const x = carX();
+      const y = ROAD_Y + ROAD_H + 12;
+
+      ctx.save();
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(START_X, y);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+
+      ctx.fillStyle = '#60a5fa';
+      ctx.font = '12px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(`s = ${path.toFixed(1)} м`, START_X + (x - START_X) / 2, y + 6);
+      ctx.restore();
+    }
+
+    function drawCar() {
+      const x = carX();
+      const y = CAR_BASE;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, .35)';
+      ctx.beginPath();
+      ctx.ellipse(x, ROAD_Y + ROAD_H - 7, 24, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(-1, 1);
+      ctx.font = '44px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       ctx.fillText('🚗', 0, 0);
       ctx.restore();
-
-      // Линия пройденного пути под машиной
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(PADDING_X, roadY + 34);
-      ctx.lineTo(x, roadY + 34);
-      ctx.stroke();
-
-      // Подпись «s» над линией. Опускаем её на 30px ниже линии (roadY + 64).
-      // Так как canvas.height = 260, а roadY = 170, то 170 + 64 = 234. 
-      // Всё отлично помещается!
-      if (pathMeters > 2) {
-        ctx.fillStyle = '#60a5fa';
-        ctx.font = '14px sans-serif';
-        ctx.textAlign = 'center';
-        const midX = PADDING_X + (x - PADDING_X) / 2;
-        ctx.fillText(`${pathMeters.toFixed(0)} м`, midX, roadY + 64);
-      }
     }
 
-    // ─── 6. Обновление показаний ──────────────────────
+    function drawSpeedArrow() {
+      if (state.finished) return;
+
+      const x = carX();
+      const y = CAR_BASE - 24;
+      const start = x + 28;
+      const maxLen = canvas.width - 24 - start;
+      if (maxLen < 16) return;
+
+      const len = Math.min(22 + (state.speed / 20) * 50, maxLen);
+      const end = start + len;
+
+      ctx.save();
+      ctx.strokeStyle = '#34d399';
+      ctx.fillStyle = '#34d399';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(start, y);
+      ctx.lineTo(end - 7, y);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(end, y);
+      ctx.lineTo(end - 8, y - 5);
+      ctx.lineTo(end - 8, y + 5);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.font = 'bold 12px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('v', end + 4, y);
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawBackdrop();
+      drawRoad();
+      drawRuler();
+      drawStartFinish();
+      drawPathLine();
+      drawSpeedArrow();
+      drawCar();
+    }
+
+    // ─── 7. Показания ─────────────────────────────────
     function updateReadout() {
-      const path = currentPath();
       outTime.textContent  = state.elapsed.toFixed(2);
-      outPath.textContent  = path.toFixed(1);
+      outPath.textContent  = currentPath().toFixed(1);
       outSpeed.textContent = state.speed.toFixed(1);
     }
 
-    // ─── 7. Главный цикл ──────────────────────────────
+    // ─── 8. Главный цикл ──────────────────────────────
     function loop(timestamp) {
       if (!state.running || state.paused) return;
 
@@ -281,30 +589,33 @@
         state.lastTimestamp = timestamp;
       }
 
-      const dt = (timestamp - state.lastTimestamp) / 1000;
+      const dt = Math.min((timestamp - state.lastTimestamp) / 1000, 0.1);
       state.lastTimestamp = timestamp;
 
       state.elapsed += dt;
 
       const path = state.pathBase + state.speed * (state.elapsed - state.timeBase);
+
       if (path >= SCENE_METERS) {
-        const remaining = SCENE_METERS - state.pathBase;
-        state.elapsed = state.timeBase + remaining / state.speed;
+        state.elapsed = state.timeBase + (SCENE_METERS - state.pathBase) / state.speed;
         state.finished = true;
         state.running = false;
         state.paused = false;
+
+        updateReadout();
+        pushChartPoint(true);
         finish();
+        return;
       }
 
       draw();
       updateReadout();
+      pushChartPoint();
 
-      if (state.running) {
-        requestAnimationFrame(loop);
-      }
+      requestAnimationFrame(loop);
     }
 
-    // ─── 8. Кнопки ────────────────────────────────────
+    // ─── 9. Кнопки ────────────────────────────────────
     function start() {
       if (state.running && !state.paused) return;
       if (state.finished) reset();
@@ -312,9 +623,11 @@
       state.running = true;
       state.paused = false;
       state.lastTimestamp = null;
+
       btnStart.disabled = true;
       btnPause.disabled = false;
       btnPause.textContent = '⏸ Пауза';
+
       requestAnimationFrame(loop);
     }
 
@@ -335,12 +648,24 @@
     function reset() {
       state.running = false;
       state.paused = false;
-      state.elapsed = 0;
-      state.lastTimestamp = null;
       state.finished = false;
+      state.elapsed = 0;
       state.pathBase = 0;
       state.timeBase = 0;
+      state.lastTimestamp = null;
+      state.lastChartTime = -1;
 
+      btnStart.disabled = false;
+      btnStart.textContent = '▶ Запустить';
+      btnPause.disabled = true;
+      btnPause.textContent = '⏸ Пауза';
+
+      resetChart();
+      draw();
+      updateReadout();
+    }
+
+    function finish() {
       btnStart.disabled = false;
       btnStart.textContent = '▶ Запустить';
       btnPause.disabled = true;
@@ -350,19 +675,11 @@
       updateReadout();
     }
 
-    function finish() {
-      btnStart.disabled = false;
-      btnStart.textContent = '▶ Запустить';
-      btnPause.disabled = true;
-      draw();
-      updateReadout();
-    }
-
-    // ─── 9. Ползунок скорости ─────────────────────────
+    // ─── 10. Ползунок скорости ────────────────────────
     speedInput.addEventListener('input', (e) => {
       const v = parseFloat(e.target.value);
 
-      state.pathBase = state.pathBase + state.speed * (state.elapsed - state.timeBase);
+      state.pathBase += state.speed * (state.elapsed - state.timeBase);
       state.timeBase = state.elapsed;
 
       state.speed = v;
@@ -373,14 +690,27 @@
       updateReadout();
     });
 
-    // ─── 10. Обработчики кнопок ───────────────────────
+    // ─── 11. Обработчики кнопок ───────────────────────
     btnStart.addEventListener('click', start);
     btnPause.addEventListener('click', pauseToggle);
     btnReset.addEventListener('click', reset);
 
-    // ─── 11. Стартовая отрисовка ──────────────────────
-    draw();
-    updateReadout();
+    // ─── 12. Старт ────────────────────────────────────
+    // Сцена рисуется сразу, график — когда загрузится Chart.js
+    reset();
+
+    function setupChart() {
+      initChart();
+      resetChart();
+    }
+
+    if (typeof Chart !== 'undefined') {
+      setupChart();
+    } else if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setupChart);
+    } else {
+      initChart();
+    }
   </script>
 </body>
 </html>

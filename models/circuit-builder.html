@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Конструктор цепей — PhysLab</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .model-page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 2rem 1rem 4rem;
+    }
+    .back-link {
+      display: inline-block;
+      color: var(--muted);
+      text-decoration: none;
+      margin-bottom: 1rem;
+      font-size: .9rem;
+    }
+    .back-link:hover { color: var(--accent-hi); }
+
+    .model-page h1 { margin: 0 0 .5rem; }
+    .model-page .lead { color: var(--muted); margin-top: 0; }
+
+    /* ── Сборка ─────────────────────────── */
+    .builder {
+      display: grid;
+      grid-template-columns: 200px minmax(0, 1fr);
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .palette {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .palette h2 {
+      margin: 0 0 .75rem;
+      font-size: .8rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .palette-list { display: flex; flex-direction: column; gap: .5rem; }
+    .palette-item {
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+      width: 100%;
+      padding: .55rem .65rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: inherit;
+      font-size: .88rem;
+      text-align: left;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      transition: border-color .2s, background .2s;
+    }
+    .palette-item:hover {
+      border-color: var(--accent);
+      background: var(--surface-2);
+    }
+    .palette-item svg {
+      width: 42px;
+      height: 28px;
+      flex: 0 0 auto;
+      color: var(--accent-hi);
+      pointer-events: none;
+    }
+    .palette-item span { pointer-events: none; }
+
+    .palette-hint {
+      margin: .9rem 0;
+      font-size: .76rem;
+      line-height: 1.55;
+      color: var(--muted);
+    }
+    .palette-actions {
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      margin-top: .9rem;
+    }
+
+    .board-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .75rem;
+    }
+
+    .statusbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: .55rem;
+      min-height: 26px;
+      padding: .1rem .2rem .6rem;
+      font-size: .85rem;
+      color: var(--muted);
+    }
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #64748b;
+      flex: 0 0 auto;
+    }
+    .status-dot.ok {
+      background: #22c55e;
+      box-shadow: 0 0 8px rgba(34, 197, 94, .6);
+      animation: dotPulse 1.6s ease-in-out infinite;
+    }
+    .status-dot.warn { background: #f59e0b; }
+    .status-dot.err {
+      background: #ef4444;
+      box-shadow: 0 0 8px rgba(239, 68, 68, .7);
+      animation: dotPulse .9s ease-in-out infinite;
+    }
+    @keyframes dotPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+    .status-extra {
+      margin-left: auto;
+      color: var(--accent-hi);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    #board {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #0b1220;
+      border-radius: 8px;
+      touch-action: none;
+      cursor: default;
+    }
+
+    .inspector {
+      margin-top: .7rem;
+      padding-top: .7rem;
+      border-top: 1px solid var(--border);
+      min-height: 96px;
+    }
+    .inspector-empty {
+      margin: .4rem 0;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+    .inspector-head {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .inspector-name {
+      font-weight: 600;
+      color: var(--text);
+      font-size: .95rem;
+    }
+    .inspector-actions {
+      margin-left: auto;
+      display: flex;
+      gap: .35rem;
+    }
+    .icon-btn {
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: .95rem;
+      cursor: pointer;
+      transition: border-color .2s;
+    }
+    .icon-btn:hover { border-color: var(--accent); }
+
+    .prop-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: .5rem .7rem;
+      margin-top: .55rem;
+      font-size: .85rem;
+      color: var(--muted);
+    }
+    .prop-row input[type="range"] {
+      width: 170px;
+      accent-color: var(--accent);
+    }
+    .prop-row output {
+      min-width: 4.5rem;
+      text-align: right;
+      color: var(--accent-hi);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .inspector-note {
+      margin: .5rem 0 0;
+      font-size: .82rem;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+    .live {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem 1rem;
+      margin-top: .6rem;
+      font-size: .84rem;
+      color: var(--muted);
+    }
+    .live b {
+      color: var(--accent-hi);
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+    .live-state { color: var(--accent-hi); }
+
+    .help {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: .75rem;
+      margin: 1.5rem 0;
+    }
+    .help-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .7rem .85rem;
+      color: var(--muted);
+      font-size: .84rem;
+      line-height: 1.5;
+    }
+    .help-item b { color: var(--accent-hi); }
+
+    .btn {
+      padding: .6rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-family: inherit;
+      font-size: .9rem;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn.small { padding: .35rem .7rem; font-size: .8rem; }
+
+    .formula-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+    .formula {
+      font-size: 1.3rem;
+      text-align: center;
+      margin: 1rem 0;
+      color: var(--accent-hi);
+      font-family: "Cambria Math", Georgia, serif;
+    }
+    .formula + .formula { margin-top: -.25rem; }
+    .formula-box p { color: var(--muted); margin: .5rem 0 0; }
+
+    /* Элемент, который тянем из палитры */
+    .palette-ghost {
+      position: fixed;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+      padding: .55rem .8rem;
+      border: 1px solid var(--accent-hi);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: .88rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+      pointer-events: none;
+      opacity: .9;
+      transform: translate(-50%, -50%);
+    }
+    .palette-ghost svg {
+      width: 42px;
+      height: 28px;
+      color: var(--accent-hi);
+    }
+
+    @media (max-width: 900px) {
+      .builder { grid-template-columns: 1fr; }
+      .palette-list { flex-direction: row; flex-wrap: wrap; }
+      .palette-item { flex: 1 1 140px; }
+      .palette-actions { flex-direction: row; }
+      .palette-hint { margin: .75rem 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="model-page">
+    <a href="../index.html" class="back-link">← Все модели</a>
+
+    <h1>🧩 Конструктор цепей</h1>
+    <p class="lead">Перетаскивай элементы на поле, соединяй контакты проводами и смотри, что загорится.</p>
+
+    <div class="builder">
+      <!-- Палитра -->
+      <aside class="palette">
+        <h2>Элементы</h2>
+
+        <div class="palette-list">
+          <button class="palette-item" type="button" data-type="battery">
+            <svg viewBox="0 0 48 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="8" y="9" width="28" height="14" rx="3"/>
+              <path d="M36 14v4M2 16h6M42 16h4"/>
+              <path d="M20 12v8M16 16h8"/>
+            </svg>
+            <span>Батарея</span>
+          </button>
+
+          <button class="palette-item" type="button" data-type="resistor">
+            <svg viewBox="0 0 48 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2 16h8l3-7 6 14 6-14 6 14 3-7h12"/>
+            </svg>
+            <span>Резистор</span>
+          </button>
+
+          <button class="palette-item" type="button" data-type="lamp">
+            <svg viewBox="0 0 48 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="22" cy="14" r="8"/>
+              <path d="M19 24h6M21 28h2M14 14H4M30 14h14"/>
+              <path d="M18 17l2-3 2 3 2-3 2 3"/>
+            </svg>
+            <span>Лампа</span>
+          </button>
+
+          <button class="palette-item" type="button" data-type="led">
+            <svg viewBox="0 0 48 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 16h10"/>
+              <path d="M14 8v16l12-8z"/>
+              <path d="M26 8v16M26 16h18"/>
+              <path d="M30 6l5-5M36 10l5-5"/>
+            </svg>
+            <span>Светодиод</span>
+          </button>
+
+          <button class="palette-item" type="button" data-type="switch">
+            <svg viewBox="0 0 48 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2 16h10M36 16h10"/>
+              <circle cx="14" cy="16" r="2.5"/>
+              <circle cx="34" cy="16" r="2.5"/>
+              <path d="M16 15l16-9"/>
+            </svg>
+            <span>Ключ</span>
+          </button>
+
+          <button class="palette-item" type="button" data-type="ammeter">
+            <svg viewBox="0 0 48 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="24" cy="16" r="11"/>
+              <path d="M24 5V2M13 16H2M35 16h11"/>
+              <text x="24" y="20" text-anchor="middle" font-size="12" font-family="sans-serif" font-weight="600" fill="currentColor" stroke="none">A</text>
+            </svg>
+            <span>Амперметр</span>
+          </button>
+        </div>
+
+        <p class="palette-hint">
+          Перетащи элемент на поле. Провода: потяни от одного кружка-контакта к другому.
+        </p>
+
+        <div class="palette-actions">
+          <button class="btn small" type="button" id="btn-example">✨ Пример</button>
+          <button class="btn small" type="button" id="btn-clear">🗑 Очистить</button>
+        </div>
+      </aside>
+
+      <!-- Поле -->
+      <section class="board-card">
+        <div class="statusbar">
+          <span class="status-dot" id="status-dot"></span>
+          <span id="status-text">Собери цепь</span>
+          <span class="status-extra" id="status-extra"></span>
+        </div>
+
+        <canvas id="board" width="900" height="560" aria-label="Поле для сборки электрической цепи"></canvas>
+
+        <div class="inspector" id="inspector">
+          <p class="inspector-empty">Выбери элемент на поле — здесь появятся настройки.</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="help">
+      <div class="help-item"><b>1.</b> Перетащи элемент из палитры на поле.</div>
+      <div class="help-item"><b>2.</b> Потяни от одного контакта к другому — появится провод.</div>
+      <div class="help-item"><b>3.</b> Выбери элемент, чтобы изменить номинал или повернуть его.</div>
+      <div class="help-item"><b>4.</b> Замкни ключ и смотри, что загорится.</div>
+    </div>
+
+    <div class="formula-box">
+      <div class="formula">I = U / R &nbsp;&nbsp;&nbsp; P = U·I</div>
+      <p>
+        В последовательной цепи ток одинаков во всех элементах, а напряжения складываются;
+        в параллельной — одинаково напряжение, а токи складываются. Провода в конструкторе
+        идеальные, а у батарейки есть небольшое внутреннее сопротивление 0.5 Ом — поэтому
+        короткое замыкание не даёт бесконечный ток. Светодиод — нелинейный элемент: он
+        загорается только при прямом включении, когда падение напряжения превышает ≈1.8 В.
+        Лампочка в модели ведёт себя как резистор 12 Ом: чем больше мощность, тем ярче она светится.
+      </p>
+    </div>
+  </main>
+
+  <script>
+    // ─── 1. Константы ─────────────────────────────────
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const GRID = 20;
+    const PAD = 26;
+
+    const BG = '#0b1220';
+    const WIRE_COLOR = '#64748b';
+    const WIRE_SEL = '#f59e0b';
+    const LABEL_COLOR = '#94a3b8';
+    const ACCENT = '#60a5fa';
+    const AMBER = '#f59e0b';
+    const GREEN = '#22c55e';
+    const RED = '#ef4444';
+
+    const TYPES = {
+      battery:  { name: 'Батарея',    len: 100, h: 44, rint: 0.5 },
+      resistor: { name: 'Резистор',   len: 90,  h: 34 },
+      lamp:     { name: 'Лампа',      len: 84,  h: 72, resistance: 12, powerRef: 1.5 },
+      led:      { name: 'Светодиод',  len: 84,  h: 44, vf: 1.8, ron: 10 },
+      switch:   { name: 'Ключ',       len: 90,  h: 44, ron: 0.01, roff: 1e7 },
+      ammeter:  { name: 'Амперметр',  len: 90,  h: 80, resistance: 0.01 }
+    };
+
+    const CURRENT_EPS = 1e-5;  // ниже этого тока цепь считаем разомкнутой
+    const OFF_G = 1e-7;        // проводимость разомкнутого ключа / погасшего LED
+    const LEAK_G = 1e-9;       // «заземление» узлов, чтобы матрица была невырожденной
+    const SHORT_FACTOR = 0.8;  // доля от U/Rвнутр, после которой считаем КЗ
+    const EXIT = 14;           // длина выхода провода из контакта, px
+
+    // ─── 2. Состояние ─────────────────────────────────
+    let components = [];
+    let wires = [];
+    let selected = null;       // { kind: 'component' | 'wire', id }
+    let wiring = null;         // { from: {id,t}, point: {x,y}, target: {id,t}|null }
+    let drag = null;           // { id, dx, dy, moved, startX, startY }
+    let hover = null;          // { kind: 'component'|'terminal'|'wire', ... }
+    let nextId = 1;
+    let sim = emptySim();
+    let lastFrame = null;
+
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const statusExtra = document.getElementById('status-extra');
+    const inspector = document.getElementById('inspector');
+
+    function emptySim() {
+      return {
+        comp: {},
+        hasBattery: false,
+        short: false,
+        overload: false,
+        anyCurrent: false,
+        maxI: 0,
+        totalPower: 0,
+        primary: null,
+        ok: true
+      };
+    }
+
+    // ─── 3. Утилиты ───────────────────────────────────
+    function clamp(v, min, max) {
+      return Math.min(max, Math.max(min, v));
+    }
+
+    function snap(v) {
+      return Math.round(v / GRID) * GRID;
+    }
+
+    function getComp(id) {
+      return components.find((c) => c.id === id) || null;
+    }
+
+    function sizeOf(c) {
+      const d = TYPES[c.type];
+      return { len: d.len, h: d.h };
+    }
+
+    function extentsOf(c) {
+      const { len, h } = sizeOf(c);
+      const rad = c.angle * Math.PI / 180;
+      return {
+        ex: Math.abs(Math.cos(rad)) * len / 2 + Math.abs(Math.sin(rad)) * h / 2,
+        ey: Math.abs(Math.sin(rad)) * len / 2 + Math.abs(Math.cos(rad)) * h / 2
+      };
+    }
+
+    function makeComponent(type, x, y, angle = 0, props = {}) {
+      return {
+        id: nextId++,
+        type,
+        x,
+        y,
+        angle,
+        _glow: 0,
+        _short: false,
+        voltage: 6,
+        resistance: 100,
+        closed: false,
+        ...props
+      };
+    }
+
+    function addComponent(type, x, y) {
+      const def = TYPES[type];
+      const c = makeComponent(type, snap(x), snap(y));
+      c.x = clamp(c.x, def.len / 2 + PAD, W - def.len / 2 - PAD);
+      c.y = clamp(c.y, def.h / 2 + PAD, H - def.h / 2 - PAD);
+
+      components.push(c);
+      selected = { kind: 'component', id: c.id };
+      simulate();
+      renderInspector();
+      drawBoard();
+      return c;
+    }
+
+    function freeSpot(type) {
+      const def = TYPES[type];
+      for (let y = 80; y <= H - 80; y += 80) {
+        for (let x = 120; x <= W - 80; x += 100) {
+          const occupied = components.some(
+            (c) => Math.abs(c.x - x) < 90 && Math.abs(c.y - y) < 70
+          );
+          if (!occupied) return { x, y };
+        }
+      }
+      return { x: W / 2, y: H / 2 };
+    }
+
+    function createWire(a, b) {
+      if (!a || !b) return null;
+      if (a.id === b.id && a.t === b.t) return null;
+
+      const exists = wires.some((w) =>
+        (w.a.id === a.id && w.a.t === a.t && w.b.id === b.id && w.b.t === b.t) ||
+        (w.a.id === b.id && w.a.t === b.t && w.b.id === a.id && w.b.t === a.t)
+      );
+      if (exists) return null;
+
+      const w = { id: nextId++, a: { id: a.id, t: a.t }, b: { id: b.id, t: b.t } };
+      wires.push(w);
+      return w;
+    }
+
+    function addWire(a, b) {
+      const w = createWire(a, b);
+      if (!w) return false;
+      selected = { kind: 'wire', id: w.id };
+      simulate();
+      renderInspector();
+      drawBoard();
+      return true;
+    }
+
+    function deleteSelected() {
+      if (!selected) return;
+
+      if (selected.kind === 'component') {
+        const id = selected.id;
+        components = components.filter((c) => c.id !== id);
+        wires = wires.filter((w) => w.a.id !== id && w.b.id !== id);
+      } else {
+        wires = wires.filter((w) => w.id !== selected.id);
+      }
+
+      selected = null;
+      renderInspector();
+      simulate();
+      drawBoard();
+    }
+
+    function rotateSelected() {
+      if (!selected || selected.kind !== 'component') return;
+      const c = getComp(selected.id);
+      if (!c) return;
+
+      c.angle = (c.angle + 90) % 360;
+
+      const { len, h } = sizeOf(c);
+      const rad = c.angle * Math.PI / 180;
+      const ex = Math.abs(Math.cos(rad)) * len / 2 + Math.abs(Math.sin(rad)) * h / 2;
+      const ey = Math.abs(Math.sin(rad)) * len / 2 + Math.abs(Math.cos(rad)) * h / 2;
+      c.x = clamp(c.x, ex + PAD, W - ex - PAD);
+      c.y = clamp(c.y, ey + PAD, H - ey - PAD);
+
+      simulate();
+      renderInspector();
+      drawBoard();
+    }
+
+    // ─── 4. Терминалы и геометрия ─────────────────────
+    function terminalPos(c, t) {
+      const { len } = sizeOf(c);
+      const rad = c.angle * Math.PI / 180;
+      const lx = t === 0 ? -len / 2 : len / 2;
+      return {
+        x: c.x + lx * Math.cos(rad),
+        y: c.y + lx * Math.sin(rad)
+      };
+    }
+
+    function terminalDir(c, t) {
+      const rad = c.angle * Math.PI / 180;
+      const s = t === 0 ? -1 : 1;
+      return { x: Math.cos(rad) * s, y: Math.sin(rad) * s };
+    }
+
+    function simplifyPath(points) {
+      const cleaned = [];
+      for (const p of points) {
+        const last = cleaned[cleaned.length - 1];
+        if (!last || Math.abs(last.x - p.x) > 0.5 || Math.abs(last.y - p.y) > 0.5) {
+          cleaned.push({ x: p.x, y: p.y });
+        }
+      }
+
+      const out = [];
+      for (let i = 0; i < cleaned.length; i++) {
+        if (i > 0 && i < cleaned.length - 1) {
+          const a = cleaned[i - 1];
+          const b = cleaned[i];
+          const c = cleaned[i + 1];
+          const cross = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+          if (Math.abs(cross) < 0.5) continue;
+        }
+        out.push(cleaned[i]);
+      }
+      return out;
+    }
+
+    // Провод: выходим из контакта по его направлению и приходим в другой
+    function wirePoints(w) {
+      const ca = getComp(w.a.id);
+      const cb = getComp(w.b.id);
+      if (!ca || !cb) return null;
+
+      const a = terminalPos(ca, w.a.t);
+      const b = terminalPos(cb, w.b.t);
+      const da = terminalDir(ca, w.a.t);
+      const db = terminalDir(cb, w.b.t);
+
+      const a2 = { x: a.x + da.x * EXIT, y: a.y + da.y * EXIT };
+      const b2 = { x: b.x + db.x * EXIT, y: b.y + db.y * EXIT };
+
+      const aHoriz = Math.abs(da.x) > 0.5;
+      const bHoriz = Math.abs(db.x) > 0.5;
+
+      const points = [a, a2];
+
+      if (aHoriz && bHoriz) {
+        points.push({ x: b2.x, y: a2.y });
+      } else if (!aHoriz && !bHoriz) {
+        points.push({ x: a2.x, y: b2.y });
+      } else if (aHoriz && !bHoriz) {
+        points.push({ x: b2.x, y: a2.y });
+      } else {
+        points.push({ x: a2.x, y: b2.y });
+      }
+
+      points.push(b2, b);
+      return simplifyPath(points);
+    }
+
+    function distToSegment(p, a, b) {
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const len2 = dx * dx + dy * dy;
+
+      if (len2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+
+      let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+      t = clamp(t, 0, 1);
+
+      return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+    }
+
+    function hitTerminal(p) {
+      const sel = selected && selected.kind === 'component' ? getComp(selected.id) : null;
+      const order = [];
+      if (sel) order.push(sel);
+      for (let i = components.length - 1; i >= 0; i--) {
+        if (components[i] !== sel) order.push(components[i]);
+      }
+
+      for (const c of order) {
+        for (let t = 0; t < 2; t++) {
+          const tp = terminalPos(c, t);
+          if (Math.hypot(tp.x - p.x, tp.y - p.y) <= 18) return { comp: c, t };
+        }
+      }
+      return null;
+    }
+
+    function pointInComponent(c, p) {
+      const rad = -c.angle * Math.PI / 180;
+      const dx = p.x - c.x;
+      const dy = p.y - c.y;
+      const lx = dx * Math.cos(rad) - dy * Math.sin(rad);
+      const ly = dx * Math.sin(rad) + dy * Math.cos(rad);
+      const { len, h } = sizeOf(c);
+      return Math.abs(lx) <= len / 2 + 6 && Math.abs(ly) <= h / 2 + 6;
+    }
+
+    function hitComponent(p) {
+      const sel = selected && selected.kind === 'component' ? getComp(selected.id) : null;
+      if (sel && pointInComponent(sel, p)) return sel;
+
+      for (let i = components.length - 1; i >= 0; i--) {
+        const c = components[i];
+        if (c !== sel && pointInComponent(c, p)) return c;
+      }
+      return null;
+    }
+
+    function hitWire(p) {
+      for (const w of wires) {
+        const pts = wirePoints(w);
+        if (!pts) continue;
+        for (let i = 0; i < pts.length - 1; i++) {
+          if (distToSegment(p, pts[i], pts[i + 1]) <= 8) return w;
+        }
+      }
+      return null;
+    }
+
+    // ─── 5. Решение цепи ──────────────────────────────
+    function solveLinear(A, b) {
+      const n = b.length;
+
+      for (let col = 0; col < n; col++) {
+        let pivot = col;
+        let max = Math.abs(A[col][col]);
+
+        for (let r = col + 1; r < n; r++) {
+          const v = Math.abs(A[r][col]);
+          if (v > max) { max = v; pivot = r; }
+        }
+
+        if (max < 1e-14) return null;
+
+        if (pivot !== col) {
+          const tmpRow = A[pivot];
+          A[pivot] = A[col];
+          A[col] = tmpRow;
+          const tmpB = b[pivot];
+          b[pivot] = b[col];
+          b[col] = tmpB;
+        }
+
+        const p = A[col][col];
+        for (let r = col + 1; r < n; r++) {
+          const f = A[r][col] / p;
+          if (f === 0) continue;
+          for (let c2 = col; c2 < n; c2++) A[r][c2] -= f * A[col][c2];
+          b[r] -= f * b[col];
+        }
+      }
+
+      const x = new Array(n).fill(0);
+      for (let r = n - 1; r >= 0; r--) {
+        let sum = b[r];
+        for (let c2 = r + 1; c2 < n; c2++) sum -= A[r][c2] * x[c2];
+        x[r] = sum / A[r][r];
+        if (!Number.isFinite(x[r])) return null;
+      }
+      return x;
+    }
+
+    function solveCircuit() {
+      const res = emptySim();
+      if (components.length === 0) return res;
+
+      // Объединяем контакты, соединённые проводами
+      const parent = new Map();
+
+      function find(k) {
+        if (!parent.has(k)) parent.set(k, k);
+        let r = k;
+        while (parent.get(r) !== r) r = parent.get(r);
+        while (parent.get(k) !== r) {
+          const next = parent.get(k);
+          parent.set(k, r);
+          k = next;
+        }
+        return r;
+      }
+
+      function union(a, b) {
+        const ra = find(a);
+        const rb = find(b);
+        if (ra !== rb) parent.set(ra, rb);
+      }
+
+      for (const c of components) {
+        find(c.id + ':0');
+        find(c.id + ':1');
+      }
+
+      for (const w of wires) {
+        union(w.a.id + ':' + w.a.t, w.b.id + ':' + w.b.t);
+      }
+
+      const nodeIdx = new Map();
+      let n = 0;
+
+      function node(key) {
+        const r = find(key);
+        if (!nodeIdx.has(r)) nodeIdx.set(r, n++);
+        return nodeIdx.get(r);
+      }
+
+      const pairs = components.map((c) => ({
+        c,
+        a: node(c.id + ':0'),
+        b: node(c.id + ':1')
+      }));
+
+      if (n === 0) return res;
+
+      // Состояния светодиодов (итеративно)
+      const ledOn = new Map();
+      for (const c of components) {
+        if (c.type === 'led') ledOn.set(c.id, false);
+      }
+
+      let V = new Array(n).fill(0);
+      let ok = true;
+
+      for (let iter = 0; iter < 30; iter++) {
+        const G = Array.from({ length: n }, () => new Array(n).fill(0));
+        const b = new Array(n).fill(0);
+
+        const addG = (i, j, g) => {
+          if (i === j) return;
+          G[i][i] += g;
+          G[j][j] += g;
+          G[i][j] -= g;
+          G[j][i] -= g;
+        };
+
+        const addI = (i, j, I) => {
+          b[i] += I;
+          b[j] -= I;
+        };
+
+        for (const { c, a, b: bb } of pairs) {
+          if (a === bb) continue;
+          const def = TYPES[c.type];
+
+          if (c.type === 'battery') {
+            const g = 1 / def.rint;
+            addG(a, bb, g);
+            addI(bb, a, c.voltage * g);
+          } else if (c.type === 'resistor') {
+            addG(a, bb, 1 / Math.max(c.resistance, 1e-3));
+          } else if (c.type === 'lamp') {
+            addG(a, bb, 1 / def.resistance);
+          } else if (c.type === 'ammeter') {
+            addG(a, bb, 1 / def.resistance);
+          } else if (c.type === 'switch') {
+            addG(a, bb, c.closed ? 1 / def.ron : OFF_G);
+          } else if (c.type === 'led') {
+            if (ledOn.get(c.id)) {
+              addG(a, bb, 1 / def.ron);
+              addI(a, bb, def.vf / def.ron);
+            } else {
+              addG(a, bb, OFF_G);
+            }
+          }
+        }
+
+        for (let i = 0; i < n; i++) G[i][i] += LEAK_G;
+
+        const sol = solveLinear(G, b);
+        if (!sol) { ok = false; break; }
+        V = sol;
+
+        let changed = false;
+        for (const { c, a, b: bb } of pairs) {
+          if (c.type !== 'led') continue;
+          if (a === bb) { ledOn.set(c.id, false); continue; }
+
+          const v = V[a] - V[bb];
+
+          if (ledOn.get(c.id)) {
+            const I = (v - TYPES.led.vf) / TYPES.led.ron;
+            if (I < -1e-9) { ledOn.set(c.id, false); changed = true; }
+          } else if (v > TYPES.led.vf + 1e-6) {
+            ledOn.set(c.id, true);
+            changed = true;
+          }
+        }
+
+        if (!changed) break;
+      }
+
+      res.ok = ok;
+
+      // Считаем напряжения, токи и мощности
+      for (const { c, a, b: bb } of pairs) {
+        const def = TYPES[c.type];
+        let U = 0;
+        let I = 0;
+        let P = 0;
+        let brightness = 0;
+        let on = false;
+        let short = false;
+
+        if (a === bb) {
+          if (c.type === 'battery') {
+            I = c.voltage / def.rint;
+            short = true;
+            res.hasBattery = true;
+            res.short = true;
+            res.anyCurrent = true;
+          }
+        } else {
+          // Для батареи U — напряжение на клеммах: плюс минус минус.
+          // Для остальных элементов — от контакта 0 к контакту 1.
+          U = c.type === 'battery' ? V[bb] - V[a] : V[a] - V[bb];
+
+          if (c.type === 'battery') {
+            I = (c.voltage - U) / def.rint;
+            P = U * I;
+            res.hasBattery = true;
+            if (Math.abs(I) > SHORT_FACTOR * Math.abs(c.voltage) / def.rint) short = true;
+            if (short) res.short = true;
+          } else if (c.type === 'resistor') {
+            I = U / Math.max(c.resistance, 1e-3);
+            P = U * I;
+          } else if (c.type === 'lamp') {
+            I = U / def.resistance;
+            P = U * I;
+            brightness = clamp(P / def.powerRef, 0, 1);
+          } else if (c.type === 'ammeter') {
+            I = U / def.resistance;
+            P = U * I;
+          } else if (c.type === 'switch') {
+            I = U / (c.closed ? def.ron : def.roff);
+            P = U * I;
+          } else if (c.type === 'led') {
+            on = !!ledOn.get(c.id);
+            if (on) {
+              I = (U - def.vf) / def.ron;
+              P = U * I;
+              brightness = clamp(I / 0.02, 0, 1);
+              if (I > 0.05) res.overload = true;
+            }
+          }
+        }
+
+        if (c.type === 'battery') {
+          if (!res.primary || Math.abs(I) > Math.abs(res.primary.I)) {
+            res.primary = { id: c.id, I, U: a === bb ? 0 : U, short };
+          }
+        } else if (P > 0) {
+          res.totalPower += P;
+        }
+
+        if (Math.abs(I) > CURRENT_EPS) res.anyCurrent = true;
+        if (Math.abs(I) > res.maxI) res.maxI = Math.abs(I);
+
+        c._short = short;
+        c._on = on;
+        res.comp[c.id] = { U, I, P, brightness, on, short };
+      }
+
+      return res;
+    }
+
+    function simulate() {
+      sim = solveCircuit();
+      updateStatus();
+      updateInspectorLive();
+    }
+
+    // ─── 6. Статус и инспектор ────────────────────────
+    function updateStatus() {
+      statusDot.className = 'status-dot';
+
+      if (!sim.ok) {
+        statusText.textContent = 'Не удалось рассчитать цепь';
+        statusDot.classList.add('err');
+        statusExtra.textContent = '';
+        return;
+      }
+
+      if (!sim.hasBattery) {
+        statusText.textContent = 'Добавь источник питания';
+        statusDot.classList.add('warn');
+        statusExtra.textContent = '';
+        return;
+      }
+
+      if (sim.short) {
+        statusText.textContent = 'Короткое замыкание!';
+        statusDot.classList.add('err');
+      } else if (!sim.anyCurrent) {
+        statusText.textContent = 'Цепь разомкнута — тока нет';
+        statusDot.classList.add('warn');
+      } else if (sim.overload) {
+        statusText.textContent = 'Цепь работает, но светодиод перегружен';
+        statusDot.classList.add('warn');
+      } else {
+        statusText.textContent = 'Цепь работает';
+        statusDot.classList.add('ok');
+      }
+
+      const I = sim.primary ? Math.abs(sim.primary.I) : 0;
+      statusExtra.textContent = `I = ${I.toFixed(2)} А · P = ${sim.totalPower.toFixed(2)} Вт`;
+    }
+
+    function renderInspector() {
+      if (!selected) {
+        inspector.innerHTML =
+          '<p class="inspector-empty">Выбери элемент на поле — здесь появятся настройки.</p>';
+        return;
+      }
+
+      if (selected.kind === 'wire') {
+        inspector.innerHTML = `
+          <div class="inspector-head">
+            <span class="inspector-name">Провод</span>
+            <div class="inspector-actions">
+              <button class="icon-btn" data-act="delete" title="Удалить">🗑</button>
+            </div>
+          </div>
+          <p class="inspector-empty">Провод соединяет два контакта.</p>
+        `;
+        return;
+      }
+
+      const c = getComp(selected.id);
+      if (!c) {
+        selected = null;
+        renderInspector();
+        return;
+      }
+
+      const def = TYPES[c.type];
+      let controls = '';
+
+      if (c.type === 'battery') {
+        controls = `
+          <div class="prop-row">
+            <label for="prop-value">Напряжение</label>
+            <input id="prop-value" data-prop="voltage" type="range" min="1" max="12" step="0.5" value="${c.voltage}">
+            <output data-out="voltage">${c.voltage} В</output>
+          </div>
+        `;
+      } else if (c.type === 'resistor') {
+        controls = `
+          <div class="prop-row">
+            <label for="prop-value">Сопротивление</label>
+            <input id="prop-value" data-prop="resistance" type="range" min="10" max="1000" step="10" value="${c.resistance}">
+            <output data-out="resistance">${c.resistance} Ом</output>
+          </div>
+        `;
+      } else if (c.type === 'switch') {
+        controls = `
+          <div class="prop-row">
+            <span>Состояние:</span>
+            <button class="btn small" data-act="toggle">${c.closed ? 'Разомкнуть' : 'Замкнуть'}</button>
+          </div>
+        `;
+      } else if (c.type === 'lamp') {
+        controls = '<p class="inspector-note">Лампа: 12 Ом, номинал 1.5 Вт. Чем больше мощность, тем ярче свечение.</p>';
+      } else if (c.type === 'led') {
+        controls = '<p class="inspector-note">Светодиод: прямое напряжение ≈ 1.8 В. Треугольник показывает направление тока — от анода к катоду.</p>';
+      } else if (c.type === 'ammeter') {
+        controls = '<p class="inspector-note">Амперметр почти идеальный: сопротивление 0.01 Ом.</p>';
+      }
+
+      const stateText = c.type === 'led'
+        ? '<span class="live-state" data-live="state">—</span>'
+        : '';
+
+      inspector.innerHTML = `
+        <div class="inspector-head">
+          <span class="inspector-name">${def.name}</span>
+          <div class="inspector-actions">
+            <button class="icon-btn" data-act="rotate" title="Повернуть">⟳</button>
+            <button class="icon-btn" data-act="delete" title="Удалить">🗑</button>
+          </div>
+        </div>
+        ${controls}
+        <div class="live">
+          <span>U: <b data-live="U">—</b> В</span>
+          <span>I: <b data-live="I">—</b> А</span>
+          <span>P: <b data-live="P">—</b> Вт</span>
+          ${stateText}
+        </div>
+      `;
+
+      updateInspectorLive();
+    }
+
+    function updateInspectorLive() {
+      if (!selected || selected.kind !== 'component') return;
+      const c = getComp(selected.id);
+      if (!c) return;
+
+      const s = sim.comp[c.id];
+      const set = (key, value) => {
+        const el = inspector.querySelector(`[data-live="${key}"]`);
+        if (el) el.textContent = value;
+      };
+
+      if (!s) {
+        set('U', '—');
+        set('I', '—');
+        set('P', '—');
+        return;
+      }
+
+      set('U', Math.abs(s.U).toFixed(2));
+      set('I', Math.abs(s.I).toFixed(2));
+      set('P', Math.max(0, s.P).toFixed(2));
+      if (c.type === 'led') set('state', s.on ? 'горит' : 'не горит');
+    }
+
+    function toggleSelectedSwitch() {
+      if (!selected || selected.kind !== 'component') return;
+      const c = getComp(selected.id);
+      if (!c || c.type !== 'switch') return;
+
+      c.closed = !c.closed;
+      simulate();
+      renderInspector();
+      drawBoard();
+    }
+
+    inspector.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-act]');
+      if (!btn) return;
+
+      const act = btn.dataset.act;
+      if (act === 'delete') deleteSelected();
+      else if (act === 'rotate') rotateSelected();
+      else if (act === 'toggle') toggleSelectedSwitch();
+    });
+
+    inspector.addEventListener('input', (e) => {
+      if (!selected || selected.kind !== 'component') return;
+      const c = getComp(selected.id);
+      if (!c) return;
+
+      const prop = e.target.dataset.prop;
+      if (!prop) return;
+
+      const value = parseFloat(e.target.value);
+
+      if (prop === 'voltage') {
+        c.voltage = value;
+        const out = inspector.querySelector('[data-out="voltage"]');
+        if (out) out.textContent = `${value} В`;
+      } else if (prop === 'resistance') {
+        c.resistance = value;
+        const out = inspector.querySelector('[data-out="resistance"]');
+        if (out) out.textContent = `${value} Ом`;
+      }
+
+      simulate();
+      drawBoard();
+    });
+
+    // ─── 7. Отрисовка ─────────────────────────────────
+    function roundedRectPath(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.arcTo(x + w, y, x + w, y + r, r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+      ctx.lineTo(x + r, y + h);
+      ctx.arcTo(x, y + h, x, y + h - r, r);
+      ctx.lineTo(x, y + r);
+      ctx.arcTo(x, y, x + r, y, r);
+      ctx.closePath();
+    }
+
+    function drawBackdrop() {
+      ctx.fillStyle = BG;
+      ctx.fillRect(0, 0, W, H);
+
+      for (let y = GRID; y < H; y += GRID) {
+        for (let x = GRID; x < W; x += GRID) {
+          const major = x % 100 === 0 && y % 100 === 0;
+          const size = major ? 2 : 1;
+          ctx.fillStyle = major ? 'rgba(148, 163, 184, .20)' : 'rgba(148, 163, 184, .11)';
+          ctx.fillRect(x - size / 2, y - size / 2, size, size);
+        }
+      }
+    }
+
+    function drawEmptyHint() {
+      if (components.length > 0 || wires.length > 0) return;
+
+      ctx.save();
+      ctx.setLineDash([8, 8]);
+      ctx.strokeStyle = 'rgba(148, 163, 184, .22)';
+      ctx.lineWidth = 2;
+      roundedRectPath(W / 2 - 230, H / 2 - 70, 460, 140, 18);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = 'rgba(148, 163, 184, .55)';
+      ctx.font = '600 18px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Перетащи элементы из палитры', W / 2, H / 2 - 14);
+
+      ctx.fillStyle = 'rgba(148, 163, 184, .4)';
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.fillText('…и соедини контакты проводами', W / 2, H / 2 + 18);
+      ctx.restore();
+    }
+
+    function drawLeads(len, halfBody) {
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-len / 2, 0);
+      ctx.lineTo(-halfBody, 0);
+      ctx.moveTo(halfBody, 0);
+      ctx.lineTo(len / 2, 0);
+      ctx.stroke();
+    }
+
+    function drawBatteryBody(c, len) {
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      roundedRectPath(-36, -20, 72, 40, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      if (c._short) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(239, 68, 68, .9)';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = 'rgba(239, 68, 68, .85)';
+        ctx.shadowBlur = 14 + 6 * Math.sin(performance.now() / 150);
+        roundedRectPath(-39, -23, 78, 46, 10);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Пластины: длинная справа (+), короткая слева (−)
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-8, -9);
+      ctx.lineTo(-8, 9);
+      ctx.moveTo(8, -15);
+      ctx.lineTo(8, 15);
+      ctx.stroke();
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('+', 22, -12);
+      ctx.fillText('−', -22, -12);
+    }
+
+    function drawResistorBody(c, len) {
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      roundedRectPath(-34, -14, 68, 28, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+
+      const x0 = -24;
+      const x1 = 24;
+      const segments = 6;
+      ctx.moveTo(x0, 0);
+      for (let i = 0; i < segments; i++) {
+        const x = x0 + ((x1 - x0) * (i + 1)) / segments;
+        const y = i === segments - 1 ? 0 : (i % 2 ? 9 : -9);
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    function drawLampBody(c, len) {
+      const glow = c._glow || 0;
+
+      ctx.save();
+      if (glow > 0.01) {
+        ctx.shadowColor = `rgba(251, 191, 36, ${0.35 + 0.6 * glow})`;
+        ctx.shadowBlur = 8 + 26 * glow;
+      }
+
+      const glass = ctx.createRadialGradient(0, 0, 3, 0, 0, 21);
+      glass.addColorStop(0, `rgba(254, 240, 138, ${0.22 + 0.75 * glow})`);
+      glass.addColorStop(0.7, `rgba(245, 158, 11, ${0.05 + 0.5 * glow})`);
+      glass.addColorStop(1, 'rgba(245, 158, 11, .04)');
+
+      ctx.fillStyle = glass;
+      ctx.beginPath();
+      ctx.arc(0, 0, 21, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = glow > 0.4 ? 'rgba(251, 191, 36, .9)' : '#94a3b8';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.strokeStyle = glow > 0.05 ? '#fde68a' : '#64748b';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-9, 6);
+      ctx.lineTo(-4, -4);
+      ctx.lineTo(1, 6);
+      ctx.lineTo(6, -4);
+      ctx.lineTo(11, 6);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawLedBody(c, len) {
+      const glow = c._glow || 0;
+      const on = glow > 0.04;
+
+      ctx.save();
+      if (on) {
+        ctx.shadowColor = `rgba(239, 68, 68, ${0.5 + 0.5 * glow})`;
+        ctx.shadowBlur = 6 + 20 * glow;
+      }
+
+      ctx.fillStyle = on ? `rgba(239, 68, 68, ${0.35 + 0.6 * glow})` : 'rgba(100, 116, 139, .25)';
+      ctx.strokeStyle = on ? '#ef4444' : '#64748b';
+      ctx.lineWidth = 2.5;
+
+      // Анод слева, катод справа
+      ctx.beginPath();
+      ctx.moveTo(-11, -12);
+      ctx.lineTo(-11, 12);
+      ctx.lineTo(11, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(13, -14);
+      ctx.lineTo(13, 14);
+      ctx.stroke();
+
+      // Стрелки света
+      ctx.strokeStyle = on ? '#f87171' : 'rgba(100, 116, 139, .5)';
+      ctx.lineWidth = 2;
+      const arrow = (x1, y1, x2, y2) => {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - 1, y2 + 6);
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - 6, y2 + 1);
+        ctx.stroke();
+      };
+      arrow(0, -16, 8, -24);
+      arrow(8, -12, 16, -20);
+
+      ctx.restore();
+    }
+
+    function drawSwitchBody(c, len) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.arc(-20, 0, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(20, 0, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-20, 0);
+      if (c.closed) ctx.lineTo(20, 0);
+      else ctx.lineTo(17, -17);
+      ctx.stroke();
+
+      ctx.fillStyle = '#64748b';
+      ctx.beginPath();
+      ctx.arc(-20, 0, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawAmmeterBody(c) {
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 26, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    function labelFor(c) {
+      if (c.type === 'battery') return `${c.voltage} В`;
+      if (c.type === 'resistor') return `${c.resistance} Ом`;
+      if (c.type === 'lamp') {
+        const s = sim.comp[c.id];
+        return s ? `Лампа · ${Math.max(0, s.P).toFixed(2)} Вт` : 'Лампа';
+      }
+      if (c.type === 'led') {
+        const s = sim.comp[c.id];
+        return s && s.on ? `LED · ${Math.max(0, s.I * 1000).toFixed(0)} мА` : 'LED';
+      }
+      if (c.type === 'switch') return c.closed ? 'Ключ · замкнут' : 'Ключ · разомкнут';
+      return '';
+    }
+
+    function drawComponentLabel(c) {
+      const text = labelFor(c);
+      if (!text) return;
+
+      const ext = extentsOf(c);
+      const vertical = c.angle % 180 !== 0;
+      const isSel = selected && selected.kind === 'component' && selected.id === c.id;
+
+      ctx.save();
+      ctx.fillStyle = isSel ? AMBER : LABEL_COLOR;
+      ctx.font = '12px system-ui, sans-serif';
+
+      if (vertical) {
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, c.x + ext.ex + 12, c.y);
+      } else {
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(text, c.x, c.y + ext.ey + 12);
+      }
+      ctx.restore();
+    }
+
+    function drawComponent(c) {
+      const { len, h } = sizeOf(c);
+      const rad = c.angle * Math.PI / 180;
+      const isSel = selected && selected.kind === 'component' && selected.id === c.id;
+
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(rad);
+
+      if (isSel) {
+        ctx.save();
+        ctx.setLineDash([6, 6]);
+        ctx.strokeStyle = AMBER;
+        ctx.lineWidth = 1.5;
+        roundedRectPath(-len / 2 - 9, -h / 2 - 9, len + 18, h + 18, 12);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (c.type === 'battery') {
+        drawLeads(len, 36);
+        drawBatteryBody(c, len);
+      } else if (c.type === 'resistor') {
+        drawLeads(len, 34);
+        drawResistorBody(c, len);
+      } else if (c.type === 'lamp') {
+        drawLeads(len, 21);
+        drawLampBody(c, len);
+      } else if (c.type === 'led') {
+        drawLeads(len, 14);
+        drawLedBody(c, len);
+      } else if (c.type === 'switch') {
+        drawLeads(len, 20);
+        drawSwitchBody(c, len);
+      } else if (c.type === 'ammeter') {
+        drawLeads(len, 26);
+        drawAmmeterBody(c);
+      }
+
+      ctx.restore();
+
+      // Показания амперметра — всегда горизонтально
+      if (c.type === 'ammeter') {
+        const s = sim.comp[c.id];
+        const I = s ? s.I : 0;
+        ctx.save();
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 13px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('A', c.x, c.y - 9);
+
+        ctx.fillStyle = s && Math.abs(I) > 0.001 ? ACCENT : '#64748b';
+        ctx.font = 'bold 12px system-ui, sans-serif';
+        ctx.fillText(`${I.toFixed(2)} А`, c.x, c.y + 9);
+        ctx.restore();
+      }
+
+      drawComponentLabel(c);
+    }
+
+    function drawWire(w) {
+      const pts = wirePoints(w);
+      if (!pts || pts.length < 2) return;
+
+      const isSel = selected && selected.kind === 'wire' && selected.id === w.id;
+      const isHover = hover && hover.kind === 'wire' && hover.id === w.id;
+
+      ctx.save();
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 7;
+      ctx.stroke();
+
+      ctx.strokeStyle = isSel ? WIRE_SEL : isHover ? '#94a3b8' : WIRE_COLOR;
+      ctx.lineWidth = 3.5;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawTerminals() {
+      const connected = new Set();
+      for (const w of wires) {
+        connected.add(w.a.id + ':' + w.a.t);
+        connected.add(w.b.id + ':' + w.b.t);
+      }
+
+      for (const c of components) {
+        for (let t = 0; t < 2; t++) {
+          const p = terminalPos(c, t);
+          const key = c.id + ':' + t;
+
+          const isTarget = wiring && wiring.target &&
+            wiring.target.id === c.id && wiring.target.t === t;
+          const isHover = hover && hover.kind === 'terminal' &&
+            hover.id === c.id && hover.t === t;
+          const isStart = wiring &&
+            wiring.from.id === c.id && wiring.from.t === t;
+
+          const r = isTarget || isHover || isStart ? 8 : 5.5;
+
+          ctx.save();
+          if (isTarget || isHover || isStart) {
+            ctx.shadowColor = isStart
+              ? 'rgba(34, 197, 94, .9)'
+              : 'rgba(245, 158, 11, .9)';
+            ctx.shadowBlur = 10;
+          }
+
+          ctx.fillStyle = isStart
+            ? GREEN
+            : (isTarget || isHover)
+              ? AMBER
+              : connected.has(key)
+                ? ACCENT
+                : '#475569';
+          ctx.strokeStyle = BG;
+          ctx.lineWidth = 2;
+
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
+
+    function drawPreview() {
+      if (!wiring) return;
+
+      const ca = getComp(wiring.from.id);
+      if (!ca) return;
+
+      const a = terminalPos(ca, wiring.from.t);
+      let b = wiring.point;
+
+      if (wiring.target) {
+        const cb = getComp(wiring.target.id);
+        if (cb) b = terminalPos(cb, wiring.target.t);
+      }
+
+      ctx.save();
+      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle = wiring.target ? GREEN : 'rgba(96, 165, 250, .8)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawBoard() {
+      ctx.clearRect(0, 0, W, H);
+
+      drawBackdrop();
+
+      for (const w of wires) drawWire(w);
+
+      const sel = selected && selected.kind === 'component' ? getComp(selected.id) : null;
+      for (const c of components) {
+        if (c !== sel) drawComponent(c);
+      }
+      if (sel) drawComponent(sel);
+
+      drawTerminals();
+      drawPreview();
+      drawEmptyHint();
+    }
+
+    // ─── 8. Анимация свечения ─────────────────────────
+    function tick(timestamp) {
+      if (lastFrame === null) lastFrame = timestamp;
+      const dt = Math.min((timestamp - lastFrame) / 1000, 0.05);
+      lastFrame = timestamp;
+
+      for (const c of components) {
+        if (c.type === 'lamp' || c.type === 'led') {
+          const target = sim.comp[c.id] ? sim.comp[c.id].brightness : 0;
+          c._glow += (target - c._glow) * Math.min(1, dt * 8);
+        }
+      }
+
+      drawBoard();
+      requestAnimationFrame(tick);
+    }
+
+    // ─── 9. Взаимодействие с полем ────────────────────
+    function getPoint(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (e.clientX - rect.left) * W / rect.width,
+        y: (e.clientY - rect.top) * H / rect.height
+      };
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+      canvas.setPointerCapture(e.pointerId);
+
+      const p = getPoint(e);
+
+      const term = hitTerminal(p);
+      if (term) {
+        wiring = {
+          from: { id: term.comp.id, t: term.t },
+          point: p,
+          target: null
+        };
+        selected = null;
+        renderInspector();
+        drawBoard();
+        return;
+      }
+
+      const comp = hitComponent(p);
+      if (comp) {
+        selected = { kind: 'component', id: comp.id };
+        drag = {
+          id: comp.id,
+          dx: comp.x - p.x,
+          dy: comp.y - p.y,
+          moved: false,
+          startX: p.x,
+          startY: p.y
+        };
+        canvas.style.cursor = 'grabbing';
+        renderInspector();
+        drawBoard();
+        return;
+      }
+
+      const wire = hitWire(p);
+      if (wire) {
+        selected = { kind: 'wire', id: wire.id };
+        drag = null;
+        renderInspector();
+        drawBoard();
+        return;
+      }
+
+      selected = null;
+      drag = null;
+      renderInspector();
+      drawBoard();
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      const p = getPoint(e);
+
+      if (wiring) {
+        wiring.point = p;
+        const t = hitTerminal(p);
+        wiring.target = t && !(t.comp.id === wiring.from.id && t.t === wiring.from.t)
+          ? { id: t.comp.id, t: t.t }
+          : null;
+        drawBoard();
+        return;
+      }
+
+      if (drag) {
+        const c = getComp(drag.id);
+        if (!c) return;
+
+        if (Math.hypot(p.x - drag.startX, p.y - drag.startY) > 4) drag.moved = true;
+
+        const { len, h } = sizeOf(c);
+        const rad = c.angle * Math.PI / 180;
+        const ex = Math.abs(Math.cos(rad)) * len / 2 + Math.abs(Math.sin(rad)) * h / 2;
+        const ey = Math.abs(Math.sin(rad)) * len / 2 + Math.abs(Math.cos(rad)) * h / 2;
+
+        c.x = clamp(snap(p.x + drag.dx), ex + PAD, W - ex - PAD);
+        c.y = clamp(snap(p.y + drag.dy), ey + PAD, H - ey - PAD);
+
+        drawBoard();
+        return;
+      }
+
+      const term = hitTerminal(p);
+      const comp = term ? null : hitComponent(p);
+      const wire = !term && !comp ? hitWire(p) : null;
+
+      const nextHover = term
+        ? { kind: 'terminal', id: term.comp.id, t: term.t }
+        : comp
+          ? { kind: 'component', id: comp.id }
+          : wire
+            ? { kind: 'wire', id: wire.id }
+            : null;
+
+      const key = (hv) => hv ? `${hv.kind}:${hv.id}:${hv.t ?? ''}` : '';
+      if (key(nextHover) !== key(hover)) {
+        hover = nextHover;
+        drawBoard();
+      }
+
+      canvas.style.cursor = term
+        ? 'crosshair'
+        : comp
+          ? (comp.type === 'switch' ? 'pointer' : 'grab')
+          : wire
+            ? 'pointer'
+            : 'default';
+    });
+
+    canvas.addEventListener('pointerup', (e) => {
+      const p = getPoint(e);
+
+      if (wiring) {
+        const t = hitTerminal(p) || wiring.target;
+        if (t && !(t.comp.id === wiring.from.id && t.t === wiring.from.t)) {
+          addWire(wiring.from, { id: t.comp.id, t: t.t });
+        }
+        wiring = null;
+        drawBoard();
+        return;
+      }
+
+      if (drag) {
+        const c = getComp(drag.id);
+        if (c && !drag.moved && c.type === 'switch') {
+          c.closed = !c.closed;
+          simulate();
+          renderInspector();
+        }
+        drag = null;
+        canvas.style.cursor = 'default';
+        drawBoard();
+      }
+    });
+
+    canvas.addEventListener('pointercancel', () => {
+      wiring = null;
+      drag = null;
+      canvas.style.cursor = 'default';
+      drawBoard();
+    });
+
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // Перетаскивание из палитры
+    function startPaletteDrag(e, item) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+
+      const type = item.dataset.type;
+      const ghost = document.createElement('div');
+      ghost.className = 'palette-ghost';
+      ghost.innerHTML = item.innerHTML;
+      document.body.appendChild(ghost);
+
+      let moved = false;
+      const startX = e.clientX;
+      const startY = e.clientY;
+
+      const place = (x, y) => {
+        ghost.style.left = `${x}px`;
+        ghost.style.top = `${y}px`;
+      };
+      place(e.clientX, e.clientY);
+
+      const onMove = (ev) => {
+        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 6) moved = true;
+        place(ev.clientX, ev.clientY);
+        if (ev.cancelable) ev.preventDefault();
+      };
+
+      const cleanup = () => {
+        ghost.remove();
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onCancel);
+      };
+
+      const onUp = (ev) => {
+        cleanup();
+
+        const rect = canvas.getBoundingClientRect();
+        const inside = ev.clientX >= rect.left && ev.clientX <= rect.right &&
+                       ev.clientY >= rect.top && ev.clientY <= rect.bottom;
+
+        if (inside) {
+          const x = (ev.clientX - rect.left) * W / rect.width;
+          const y = (ev.clientY - rect.top) * H / rect.height;
+          addComponent(type, x, y);
+        } else if (!moved) {
+          const spot = freeSpot(type);
+          addComponent(type, spot.x, spot.y);
+        }
+      };
+
+      const onCancel = () => cleanup();
+
+      window.addEventListener('pointermove', onMove, { passive: false });
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onCancel);
+    }
+
+    document.querySelectorAll('.palette-item').forEach((item) => {
+      item.addEventListener('pointerdown', (e) => startPaletteDrag(e, item));
+    });
+
+    // Клавиатура
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        wiring = null;
+        drag = null;
+        selected = null;
+        renderInspector();
+        drawBoard();
+        return;
+      }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const tag = document.activeElement ? document.activeElement.tagName : '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        if (!selected) return;
+        e.preventDefault();
+        deleteSelected();
+        return;
+      }
+
+      if (e.key === 'r' || e.key === 'R' || e.key === 'к' || e.key === 'К') {
+        const tag = document.activeElement ? document.activeElement.tagName : '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        rotateSelected();
+      }
+    });
+
+    // ─── 10. Пример и очистка ─────────────────────────
+    function clearBoard(ask) {
+      if (ask && (components.length || wires.length) && !confirm('Очистить поле?')) return;
+
+      components = [];
+      wires = [];
+      selected = null;
+      wiring = null;
+      drag = null;
+      hover = null;
+      sim = emptySim();
+
+      updateStatus();
+      renderInspector();
+      drawBoard();
+    }
+
+    function loadExample() {
+      if ((components.length || wires.length) && !confirm('Заменить текущую схему примером?')) return;
+
+      components = [];
+      wires = [];
+      selected = null;
+      wiring = null;
+      drag = null;
+      hover = null;
+
+      const battery = makeComponent('battery', 230, 420, 0, { voltage: 6 });
+      const sw = makeComponent('switch', 430, 420, 0, { closed: true });
+      const lamp = makeComponent('lamp', 680, 300, 90);
+      const resistor = makeComponent('resistor', 430, 170, 0, { resistance: 10 });
+
+      components.push(battery, sw, lamp, resistor);
+
+      createWire({ id: battery.id, t: 1 }, { id: sw.id, t: 0 });
+      createWire({ id: sw.id, t: 1 }, { id: lamp.id, t: 1 });
+      createWire({ id: lamp.id, t: 0 }, { id: resistor.id, t: 1 });
+      createWire({ id: resistor.id, t: 0 }, { id: battery.id, t: 0 });
+
+      simulate();
+      renderInspector();
+      drawBoard();
+    }
+
+    document.getElementById('btn-example').addEventListener('click', loadExample);
+    document.getElementById('btn-clear').addEventListener('click', () => clearBoard(true));
+
+    // ─── 11. Старт ────────────────────────────────────
+    updateStatus();
+    renderInspector();
+    drawBoard();
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>

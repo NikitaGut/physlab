@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Свободное падение — PhysLab</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .model-page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1rem 4rem;
+    }
+    .back-link {
+      display: inline-block;
+      color: var(--muted);
+      text-decoration: none;
+      margin-bottom: 1rem;
+      font-size: .9rem;
+    }
+    .back-link:hover { color: var(--accent-hi); }
+
+    .model-page h1 { margin: 0 0 .5rem; }
+    .model-page .lead { color: var(--muted); margin-top: 0; }
+
+    .stage {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin: 1.5rem 0;
+    }
+    .stage canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #0b1220;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .readout {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: .75rem;
+      margin-top: 1rem;
+    }
+    .readout-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem 1rem;
+    }
+    .readout-label { font-size: .8rem; color: var(--muted); }
+    .readout-value {
+      font-size: 1.3rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-hi);
+    }
+    .readout-unit { font-size: .9rem; color: var(--muted); margin-left: .2rem; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: .5rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .slider-row label { grid-column: 1 / -1; color: var(--muted); font-size: .9rem; }
+    .slider-row input[type="range"] { width: 100%; accent-color: var(--accent); }
+    .slider-row output {
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-hi);
+      font-weight: 600;
+      min-width: 5rem;
+      text-align: right;
+    }
+
+    /* Быстрые пресеты для g */
+    .presets { display: flex; gap: .5rem; flex-wrap: wrap; margin: -.25rem 0 1.25rem; }
+    .preset {
+      padding: .3rem .75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      font-size: .8rem;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .preset:hover { color: var(--text); border-color: var(--accent); }
+
+    .buttons { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: .5rem; }
+    .btn {
+      padding: .65rem 1.25rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .hint { color: var(--muted); font-size: .9rem; margin: 1rem 0 0; }
+
+    /* ── Графики ────────────────────────── */
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+    .charts[hidden] { display: none; }
+    .chart-container {
+      position: relative;
+      height: 280px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+
+    .formula-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+    .formula {
+      font-size: 1.3rem;
+      text-align: center;
+      margin: 1rem 0;
+      color: var(--accent-hi);
+      font-family: "Cambria Math", Georgia, serif;
+    }
+    .formula-box p { color: var(--muted); margin: .5rem 0 0; }
+
+    @media (max-width: 720px) {
+      .charts { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="model-page">
+    <a href="../index.html" class="back-link">← Все модели</a>
+
+    <h1>🪂 Свободное падение</h1>
+    <p class="lead">Меняй высоту и ускорение свободного падения — наблюдай, как тело падает.</p>
+
+    <!-- Управление -->
+    <div class="panel">
+      <div class="slider-row">
+        <label for="height">Начальная высота h₀</label>
+        <input type="range" id="height" min="5" max="100" step="1" value="20">
+        <output for="height" id="height-out">20 м</output>
+      </div>
+
+      <div class="slider-row">
+        <label for="gravity">Ускорение свободного падения g</label>
+        <input type="range" id="gravity" min="1.6" max="20" step="0.1" value="9.8">
+        <output for="gravity" id="gravity-out">9.8 м/с²</output>
+      </div>
+
+      <div class="presets">
+        <button class="preset" type="button" data-g="1.6">🌕 Луна · 1.6</button>
+        <button class="preset" type="button" data-g="3.7">🔴 Марс · 3.7</button>
+        <button class="preset" type="button" data-g="9.8">🌍 Земля · 9.8</button>
+      </div>
+
+      <div class="buttons">
+        <button class="btn primary" id="btn-start">▶ Запустить</button>
+        <button class="btn" id="btn-pause" disabled>⏸ Пауза</button>
+        <button class="btn" id="btn-reset">↺ Сброс</button>
+      </div>
+
+      <p class="hint" id="hint"></p>
+    </div>
+
+    <!-- Сцена -->
+    <div class="stage">
+      <canvas id="canvas" width="860" height="380"></canvas>
+
+      <div class="readout">
+        <div class="readout-item">
+          <div class="readout-label">Время t</div>
+          <div><span class="readout-value" id="out-time">0.00</span><span class="readout-unit">с</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Высота h</div>
+          <div><span class="readout-value" id="out-height">20.0</span><span class="readout-unit">м</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Скорость v</div>
+          <div><span class="readout-value" id="out-speed">0.0</span><span class="readout-unit">м/с</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Пройдено</div>
+          <div><span class="readout-value" id="out-path">0.0</span><span class="readout-unit">м</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Графики -->
+    <div class="charts" id="charts">
+      <div class="chart-container"><canvas id="chart-speed"></canvas></div>
+      <div class="chart-container"><canvas id="chart-height"></canvas></div>
+    </div>
+
+    <!-- Теория -->
+    <div class="formula-box">
+      <div class="formula">
+        h = h₀ − g·t² / 2 &nbsp;&nbsp;&nbsp; v = g·t &nbsp;&nbsp;&nbsp; t = √(2h₀ / g)
+      </div>
+      <p>
+        Свободное падение — это движение только под действием силы тяжести, без учёта
+        сопротивления воздуха. Все тела падают с одинаковым ускорением <em>g</em>,
+        поэтому от массы ничего не зависит: в вакууме пёрышко и гиря упадут одновременно.
+        Скорость растёт линейно со временем, а высота убывает по параболе. Полное время
+        падения <em>t</em> = √(2h₀/g): с высоты 20 м на Земле это около 2 секунд.
+        Попробуй пресеты Луны и Марса — там <em>g</em> меньше, и падение заметно медленнее.
+      </p>
+    </div>
+  </main>
+
+  <script>
+    // ─── 1. Константы сцены ───────────────────────────
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const TOP_Y = 46;                          // верх поля — уровень h₀
+    const GROUND_Y = canvas.height - 64;       // уровень земли
+    const RULER_X = 78;                        // вертикальная линейка
+    const BALL_X = 470;                        // тело падает по этой вертикали
+    const FIELD_RIGHT = canvas.width - 34;
+    const BALL_R = 13;
+
+    // ─── 2. Состояние симуляции ───────────────────────
+    const state = {
+      running: false,
+      paused: false,
+      finished: false,
+      height0: 20,          // начальная высота, м
+      g: 9.8,               // ускорение свободного падения, м/с²
+      elapsed: 0,           // время с начала падения, с
+      height: 20,           // текущая высота, м
+      speed: 0,             // текущая скорость, м/с
+      lastTimestamp: null
+    };
+
+    // ─── 3. Элементы UI ───────────────────────────────
+    const heightInput = document.getElementById('height');
+    const heightOut   = document.getElementById('height-out');
+    const gravityInput = document.getElementById('gravity');
+    const gravityOut  = document.getElementById('gravity-out');
+    const hint        = document.getElementById('hint');
+    const outTime     = document.getElementById('out-time');
+    const outHeight   = document.getElementById('out-height');
+    const outSpeed    = document.getElementById('out-speed');
+    const outPath     = document.getElementById('out-path');
+    const btnStart    = document.getElementById('btn-start');
+    const btnPause    = document.getElementById('btn-pause');
+    const btnReset    = document.getElementById('btn-reset');
+    const presets     = document.querySelectorAll('.preset');
+
+    // ─── 4. Формулы движения ──────────────────────────
+    // Время падения с высоты h₀: t = √(2h₀ / g)
+    function fallTime() {
+      return Math.sqrt(2 * state.height0 / state.g);
+    }
+
+    // Скорость в момент удара о землю: v = √(2·g·h₀)
+    function impactSpeed() {
+      return Math.sqrt(2 * state.g * state.height0);
+    }
+
+    // Точное решение для равноускоренного движения (без ошибки интегрирования)
+    function updatePhysics() {
+      const t = Math.min(state.elapsed, fallTime());
+      state.height = Math.max(0, state.height0 - 0.5 * state.g * t * t);
+      state.speed = state.g * t;
+    }
+
+    // ─── 5. Перевод высоты в координату на canvas ─────
+    function heightToY(h) {
+      return GROUND_Y - (h / state.height0) * (GROUND_Y - TOP_Y);
+    }
+
+    // «Красивый» шаг делений линейки: 1, 2, 5, 10, 20, 50…
+    function niceStep(range) {
+      const raw = range / 5;
+      const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+      const n = raw / pow;
+      const mult = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+      return mult * pow;
+    }
+
+    // ─── 6. Графики ───────────────────────────────────
+    let chartSpeed = null;
+    let chartHeight = null;
+
+    const AXIS_COLOR = '#94a3b8';
+    const TICK_COLOR = '#64748b';
+    const GRID_COLOR = '#1e293b';
+
+    // Максимум оси округляем до «красивого» шага, чтобы верхнее
+    // деление не висело отдельно от остальных (например, 49 над 40)
+    function niceMax(value, step) {
+      return step * Math.ceil(value / step);
+    }
+
+    function timeStep() {
+      return niceStep(fallTime());
+    }
+
+    function timeAxisMax() {
+      return niceMax(fallTime() * 1.1, timeStep());
+    }
+
+    function speedStep() {
+      return niceStep(impactSpeed());
+    }
+
+    function speedAxisMax() {
+      return niceMax(impactSpeed() * 1.1, speedStep());
+    }
+
+    function heightStep() {
+      return niceStep(state.height0);
+    }
+
+    function heightAxisMax() {
+      return niceMax(state.height0, heightStep());
+    }
+
+    function makeChart(canvasId, label, color, fill, yTitle, yMax, yStep) {
+      return new Chart(document.getElementById(canvasId).getContext('2d'), {
+        type: 'line',
+        data: {
+          datasets: [{
+            label,
+            data: [],
+            borderColor: color,
+            backgroundColor: fill,
+            borderWidth: 2,
+            fill: true,
+            tension: 0,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          parsing: false,
+          normalized: true,
+          locale: 'en-US',   // десятичные точки, как в остальных показаниях
+          plugins: {
+            legend: { labels: { color: AXIS_COLOR } }
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              min: 0,
+              max: timeAxisMax(),
+              title: { display: true, text: 'Время t, с', color: AXIS_COLOR },
+              ticks: { color: TICK_COLOR, stepSize: timeStep() },
+              grid: { color: GRID_COLOR }
+            },
+            y: {
+              min: 0,
+              max: yMax,
+              title: { display: true, text: yTitle, color: AXIS_COLOR },
+              ticks: { color: TICK_COLOR, stepSize: yStep },
+              grid: { color: GRID_COLOR }
+            }
+          }
+        }
+      });
+    }
+
+    function initCharts() {
+      // Если Chart.js не загрузился (нет интернета), сцена всё равно работает
+      if (typeof Chart === 'undefined') {
+        document.getElementById('charts').hidden = true;
+        return;
+      }
+
+      chartSpeed = makeChart(
+        'chart-speed', 'Скорость v, м/с',
+        '#3b82f6', 'rgba(59, 130, 246, .12)',
+        'Скорость v, м/с', speedAxisMax(), speedStep()
+      );
+      chartHeight = makeChart(
+        'chart-height', 'Высота h, м',
+        '#22c55e', 'rgba(34, 197, 94, .10)',
+        'Высота h, м', heightAxisMax(), heightStep()
+      );
+    }
+
+    // Подгоняем диапазоны осей под текущие параметры
+    function applyChartAxes() {
+      if (!chartSpeed) return;
+
+      const xMax = timeAxisMax();
+      const xStep = timeStep();
+
+      chartSpeed.options.scales.x.max = xMax;
+      chartSpeed.options.scales.x.ticks.stepSize = xStep;
+      chartSpeed.options.scales.y.max = speedAxisMax();
+      chartSpeed.options.scales.y.ticks.stepSize = speedStep();
+
+      chartHeight.options.scales.x.max = xMax;
+      chartHeight.options.scales.x.ticks.stepSize = xStep;
+      chartHeight.options.scales.y.max = heightAxisMax();
+      chartHeight.options.scales.y.ticks.stepSize = heightStep();
+
+      chartSpeed.update('none');
+      chartHeight.update('none');
+    }
+
+    function pushChartPoints() {
+      if (!chartSpeed) return;
+
+      chartSpeed.data.datasets[0].data.push({ x: state.elapsed, y: state.speed });
+      chartHeight.data.datasets[0].data.push({ x: state.elapsed, y: state.height });
+
+      chartSpeed.update('none');
+      chartHeight.update('none');
+    }
+
+    // ─── 7. Отрисовка сцены ───────────────────────────
+    function drawGround() {
+      // Полоса земли
+      ctx.fillStyle = '#1a2438';
+      ctx.fillRect(RULER_X - 24, GROUND_Y, FIELD_RIGHT - RULER_X + 24, 26);
+
+      // Штриховка
+      ctx.strokeStyle = '#243049';
+      ctx.lineWidth = 1;
+      for (let x = RULER_X - 24; x + 14 <= FIELD_RIGHT; x += 14) {
+        ctx.beginPath();
+        ctx.moveTo(x, GROUND_Y + 26);
+        ctx.lineTo(x + 14, GROUND_Y);
+        ctx.stroke();
+      }
+
+      // Линия поверхности
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(RULER_X - 24, GROUND_Y);
+      ctx.lineTo(FIELD_RIGHT, GROUND_Y);
+      ctx.stroke();
+
+      // Подпись
+      ctx.fillStyle = '#64748b';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      ctx.fillText('Земля', FIELD_RIGHT, GROUND_Y + 32);
+    }
+
+    function drawRuler() {
+      const step = niceStep(state.height0);
+
+      // Подпись оси
+      ctx.fillStyle = '#64748b';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('h, м', RULER_X - 14, 24);
+
+      // Вертикальная линия линейки
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(RULER_X, TOP_Y);
+      ctx.lineTo(RULER_X, GROUND_Y);
+      ctx.stroke();
+
+      for (let h = 0; h <= state.height0 + 1e-9; h += step) {
+        const y = heightToY(h);
+
+        // Сетка через всё поле
+        ctx.strokeStyle = 'rgba(148, 163, 184, .07)';
+        ctx.beginPath();
+        ctx.moveTo(RULER_X, y);
+        ctx.lineTo(FIELD_RIGHT, y);
+        ctx.stroke();
+
+        // Деление
+        ctx.strokeStyle = '#475569';
+        ctx.beginPath();
+        ctx.moveTo(RULER_X - 10, y);
+        ctx.lineTo(RULER_X, y);
+        ctx.stroke();
+
+        // Подпись высоты
+        ctx.fillStyle = '#64748b';
+        ctx.fillText(Math.round(h).toString(), RULER_X - 14, y);
+      }
+    }
+
+    function drawStartLine() {
+      const y = heightToY(state.height0);
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(96, 165, 250, .35)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(RULER_X, y);
+      ctx.lineTo(FIELD_RIGHT, y);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = '#60a5fa';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`h₀ = ${state.height0} м`, FIELD_RIGHT, y - 6);
+    }
+
+    function drawShadow() {
+      const k = 1 - state.height / state.height0;   // 0 сверху, 1 у земли
+      ctx.save();
+      ctx.fillStyle = `rgba(0, 0, 0, ${0.12 + k * 0.25})`;
+      ctx.beginPath();
+      ctx.ellipse(BALL_X, GROUND_Y + 3, 12 + k * 14, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawTrail() {
+      const startY = heightToY(state.height0) - BALL_R;
+      const y = heightToY(state.height) - BALL_R;
+      if (y - startY < 2) return;
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(96, 165, 250, .25)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 7]);
+      ctx.beginPath();
+      ctx.moveTo(BALL_X, startY);
+      ctx.lineTo(BALL_X, y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawBall() {
+      const y = heightToY(state.height) - BALL_R;
+      const grad = ctx.createRadialGradient(BALL_X - 4, y - 5, 2, BALL_X, y, BALL_R);
+      grad.addColorStop(0, '#dbeafe');
+      grad.addColorStop(0.5, '#60a5fa');
+      grad.addColorStop(1, '#1d4ed8');
+
+      ctx.save();
+      ctx.shadowColor = 'rgba(59, 130, 246, .55)';
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(BALL_X, y, BALL_R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawHeightGuide() {
+      const y = heightToY(state.height);
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(148, 163, 184, .3)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.moveTo(RULER_X, y);
+      ctx.lineTo(BALL_X - BALL_R - 10, y);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(
+        `h = ${state.height.toFixed(1)} м`,
+        (RULER_X + BALL_X - BALL_R - 10) / 2,
+        y - 6
+      );
+    }
+
+    function drawVelocityArrow() {
+      if (state.speed < 0.2) return;
+
+      const y = heightToY(state.height) - BALL_R;
+      const startX = BALL_X + BALL_R + 12;
+      const len = 18 + (state.speed / impactSpeed()) * 70;
+      const endX = startX + len;
+
+      ctx.save();
+      ctx.strokeStyle = '#ef4444';
+      ctx.fillStyle = '#ef4444';
+      ctx.lineWidth = 2.5;
+
+      ctx.beginPath();
+      ctx.moveTo(startX, y);
+      ctx.lineTo(endX, y);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(endX, y);
+      ctx.lineTo(endX - 8, y - 5);
+      ctx.lineTo(endX - 8, y + 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = '#f87171';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`v = ${state.speed.toFixed(1)} м/с`, startX, y - 8);
+    }
+
+    function drawImpact() {
+      if (!state.finished) return;
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(245, 158, 11, .8)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 7; i++) {
+        const angle = Math.PI + (i + 1) * Math.PI / 8;
+        const inner = 16;
+        const outer = 26 + (i % 2) * 6;
+        ctx.beginPath();
+        ctx.moveTo(
+          BALL_X + Math.cos(angle) * inner,
+          GROUND_Y + Math.sin(angle) * inner * 0.7
+        );
+        ctx.lineTo(
+          BALL_X + Math.cos(angle) * outer,
+          GROUND_Y + Math.sin(angle) * outer * 0.7
+        );
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawGround();
+      drawRuler();
+      drawStartLine();
+      drawImpact();
+      drawShadow();
+      drawTrail();
+      drawBall();
+      drawHeightGuide();
+      drawVelocityArrow();
+    }
+
+    // ─── 8. Показания ─────────────────────────────────
+    function updateReadout() {
+      outTime.textContent   = state.elapsed.toFixed(2);
+      outHeight.textContent = state.height.toFixed(1);
+      outSpeed.textContent  = state.speed.toFixed(1);
+      outPath.textContent   = (state.height0 - state.height).toFixed(1);
+    }
+
+    function updateHint() {
+      hint.textContent =
+        `С высоты ${state.height0} м при g = ${state.g.toFixed(1)} м/с² падение ` +
+        `займёт ${fallTime().toFixed(2)} с, а скорость у земли достигнет ` +
+        `${impactSpeed().toFixed(1)} м/с.`;
+    }
+
+    // ─── 9. Главный цикл ──────────────────────────────
+    function loop(timestamp) {
+      if (!state.running || state.paused) return;
+
+      if (state.lastTimestamp === null) {
+        state.lastTimestamp = timestamp;
+      }
+
+      // Ограничиваем dt, чтобы после сворачивания вкладки тело не «телепортировалось»
+      const dt = Math.min((timestamp - state.lastTimestamp) / 1000, 0.1);
+      state.lastTimestamp = timestamp;
+
+      state.elapsed += dt;
+
+      const tLand = fallTime();
+      const landed = state.elapsed >= tLand;
+      if (landed) state.elapsed = tLand;
+
+      updatePhysics();
+      pushChartPoints();
+
+      if (landed) {
+        state.running = false;
+        state.finished = true;
+        finish();
+        return;
+      }
+
+      draw();
+      updateReadout();
+
+      requestAnimationFrame(loop);
+    }
+
+    // ─── 10. Кнопки ───────────────────────────────────
+    function start() {
+      if (state.running && !state.paused) return;
+      if (state.finished) reset();
+
+      state.running = true;
+      state.paused = false;
+      state.lastTimestamp = null;
+      btnStart.disabled = true;
+      btnPause.disabled = false;
+      btnPause.textContent = '⏸ Пауза';
+      requestAnimationFrame(loop);
+    }
+
+    function pauseToggle() {
+      if (!state.running) return;
+
+      if (state.paused) {
+        state.paused = false;
+        state.lastTimestamp = null;
+        btnPause.textContent = '⏸ Пауза';
+        requestAnimationFrame(loop);
+      } else {
+        state.paused = true;
+        btnPause.textContent = '▶ Продолжить';
+      }
+    }
+
+    function reset() {
+      state.running = false;
+      state.paused = false;
+      state.finished = false;
+      state.elapsed = 0;
+      state.lastTimestamp = null;
+      state.height = state.height0;
+      state.speed = 0;
+
+      btnStart.disabled = false;
+      btnStart.textContent = '▶ Запустить';
+      btnPause.disabled = true;
+      btnPause.textContent = '⏸ Пауза';
+
+      if (chartSpeed) {
+        chartSpeed.data.datasets[0].data = [];
+        chartHeight.data.datasets[0].data = [];
+        applyChartAxes();
+      }
+
+      updateHint();
+      draw();
+      updateReadout();
+    }
+
+    function finish() {
+      btnStart.disabled = false;
+      btnStart.textContent = '▶ Запустить';
+      btnPause.disabled = true;
+      btnPause.textContent = '⏸ Пауза';
+
+      draw();
+      updateReadout();
+    }
+
+    // ─── 11. Ползунки и пресеты ───────────────────────
+    heightInput.addEventListener('input', (e) => {
+      state.height0 = parseFloat(e.target.value);
+      heightOut.textContent = `${state.height0} м`;
+      reset();
+    });
+
+    gravityInput.addEventListener('input', (e) => {
+      state.g = parseFloat(e.target.value);
+      gravityOut.textContent = `${state.g.toFixed(1)} м/с²`;
+      reset();
+    });
+
+    presets.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const g = parseFloat(btn.dataset.g);
+        state.g = g;
+        gravityInput.value = g;
+        gravityOut.textContent = `${g.toFixed(1)} м/с²`;
+        reset();
+      });
+    });
+
+    btnStart.addEventListener('click', start);
+    btnPause.addEventListener('click', pauseToggle);
+    btnReset.addEventListener('click', reset);
+
+    // ─── 12. Старт ────────────────────────────────────
+    initCharts();
+    reset();
+  </script>
+</body>
+</html>

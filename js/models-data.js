@@ -60,5 +60,15 @@ const MODELS = [
     categoryName: 'Колебания',
     url: 'models/oscillations.html',
     difficulty: 'medium'
+  },
+  {
+    id: 'circuit-builder',
+    title: 'Конструктор цепей',
+    icon: '🧩',
+    description: 'Перетаскивай элементы, соединяй проводами и собирай свои цепи.',
+    category: 'electricity',
+    categoryName: 'Электричество',
+    url: 'models/circuit-builder.html',
+    difficulty: 'hard'
   }
 ];

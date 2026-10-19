@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Гармонические колебания — PhysLab</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .model-page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1rem 4rem;
+    }
+    .back-link {
+      display: inline-block;
+      color: var(--muted);
+      text-decoration: none;
+      margin-bottom: 1rem;
+      font-size: .9rem;
+    }
+    .back-link:hover { color: var(--accent-hi); }
+
+    .model-page h1 { margin: 0 0 .5rem; }
+    .model-page .lead { color: var(--muted); margin-top: 0; }
+
+    .stage {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin: 1.5rem 0;
+    }
+    .stage canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #0b1220;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .readout {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: .75rem;
+      margin-top: 1rem;
+    }
+    .readout-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem 1rem;
+    }
+    .readout-label { font-size: .8rem; color: var(--muted); }
+    .readout-value {
+      font-size: 1.3rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-hi);
+    }
+    .readout-unit { font-size: .9rem; color: var(--muted); margin-left: .2rem; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: .5rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .slider-row label { grid-column: 1 / -1; color: var(--muted); font-size: .9rem; }
+    .slider-row input[type="range"] { width: 100%; accent-color: var(--accent); }
+    .slider-row output {
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-hi);
+      font-weight: 600;
+      min-width: 5rem;
+      text-align: right;
+    }
+
+    .buttons { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: .5rem; }
+    .btn {
+      padding: .65rem 1.25rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .hint { color: var(--muted); font-size: .9rem; margin: 1rem 0 0; }
+
+    /* ── Графики ────────────────────────── */
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+    .charts[hidden] { display: none; }
+    .chart-container {
+      position: relative;
+      height: 280px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+
+    .formula-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+    .formula {
+      font-size: 1.3rem;
+      text-align: center;
+      margin: 1rem 0;
+      color: var(--accent-hi);
+      font-family: "Cambria Math", Georgia, serif;
+    }
+    .formula + .formula { margin-top: -.25rem; }
+    .formula-box p { color: var(--muted); margin: .5rem 0 0; }
+
+    @media (max-width: 720px) {
+      .charts { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="model-page">
+    <a href="../index.html" class="back-link">← Все модели</a>
+
+    <h1>🌊 Гармонические колебания</h1>
+    <p class="lead">Меняй амплитуду и частоту — наблюдай, как колеблется груз на пружине.</p>
+
+    <!-- Управление -->
+    <div class="panel">
+      <div class="slider-row">
+        <label for="amplitude">Амплитуда A</label>
+        <input type="range" id="amplitude" min="0.05" max="0.20" step="0.01" value="0.10">
+        <output for="amplitude" id="amplitude-out">0.10 м</output>
+      </div>
+
+      <div class="slider-row">
+        <label for="frequency">Частота f</label>
+        <input type="range" id="frequency" min="0.2" max="2" step="0.1" value="0.5">
+        <output for="frequency" id="frequency-out">0.5 Гц</output>
+      </div>
+
+      <div class="buttons">
+        <button class="btn" id="btn-reset">↺ Сброс</button>
+      </div>
+
+      <p class="hint" id="hint"></p>
+    </div>
+
+    <!-- Сцена -->
+    <div class="stage">
+      <canvas id="canvas" width="860" height="380"></canvas>
+
+      <div class="readout">
+        <div class="readout-item">
+          <div class="readout-label">Период T</div>
+          <div><span class="readout-value" id="out-T">2.00</span><span class="readout-unit">с</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Смещение x</div>
+          <div><span class="readout-value" id="out-x">0.000</span><span class="readout-unit">м</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Скорость v</div>
+          <div><span class="readout-value" id="out-v">0.31</span><span class="readout-unit">м/с</span></div>
+        </div>
+        <div class="readout-item">
+          <div class="readout-label">Ускорение a</div>
+          <div><span class="readout-value" id="out-a">0.00</span><span class="readout-unit">м/с²</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Графики -->
+    <div class="charts" id="charts">
+      <div class="chart-container"><canvas id="chart-x"></canvas></div>
+      <div class="chart-container"><canvas id="chart-v"></canvas></div>
+    </div>
+
+    <!-- Теория -->
+    <div class="formula-box">
+      <div class="formula">
+        x = A·sin(ωt) &nbsp;&nbsp;&nbsp; v = A·ω·cos(ωt)
+      </div>
+      <div class="formula">
+        a = −A·ω²·sin(ωt) &nbsp;&nbsp;&nbsp; T = 1/f &nbsp;&nbsp;&nbsp; ω = 2πf
+      </div>
+      <p>
+        Гармоническое колебание — движение, при котором смещение от положения
+        равновесия меняется по закону синуса. Амплитуда <em>A</em> — максимальное
+        смещение, период <em>T</em> — время одного полного колебания, частота
+        <em>f</em> = 1/<em>T</em> — число колебаний в секунду. В крайних точках
+        скорость равна нулю, а ускорение максимально; в положении равновесия —
+        наоборот. Ускорение всегда направлено к равновесию: <em>a</em> = −ω²<em>x</em>.
+        Для пружинного маятника <em>T</em> = 2π√(m/k), для математического —
+        <em>T</em> = 2π√(L/g); в этой модели частота задаётся напрямую, поэтому
+        амплитуда на период не влияет. Полная энергия постоянна: кинетическая
+        переходит в потенциальную и обратно.
+      </p>
+    </div>
+  </main>
+
+  <script>
+    // ─── 1. Константы сцены ───────────────────────────
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const AMIN = 0.05;               // амплитуда, м
+    const AMAX = 0.20;
+    const FMIN = 0.2;                // частота, Гц
+    const FMAX = 2;
+
+    const PX_PER_METER = 300;        // масштаб сцены
+    const EQ_Y = 230;                // положение равновесия груза
+    const MASS_W = 72;
+    const MASS_H = 40;
+    const SPRING_CX = 430;           // ось пружины
+    const VECTOR_X = 505;            // стрелка скорости
+    const ACCEL_X = 550;             // стрелка ускорения
+
+    // ─── 2. Состояние ─────────────────────────────────
+    const state = {
+      A: 0.10,                       // амплитуда, м
+      f: 0.5,                        // частота, Гц
+      phase: 0,                      // фаза, рад
+      time: 0,                       // время для графиков, с
+      x: 0,                          // смещение, м
+      v: 0,                          // скорость, м/с
+      a: 0,                          // ускорение, м/с²
+      lastTimestamp: null
+    };
+
+    function omega() {
+      return 2 * Math.PI * state.f;
+    }
+
+    function period() {
+      return 1 / state.f;
+    }
+
+    function computeMotion() {
+      const w = omega();
+      state.x = state.A * Math.sin(state.phase);
+      state.v = state.A * w * Math.cos(state.phase);
+      state.a = -state.A * w * w * Math.sin(state.phase);
+    }
+
+    function vMax() {
+      return state.A * omega();
+    }
+
+    function aMax() {
+      return state.A * omega() * omega();
+    }
+
+    // ─── 3. Элементы UI ───────────────────────────────
+    const amplitudeInput = document.getElementById('amplitude');
+    const amplitudeOut   = document.getElementById('amplitude-out');
+    const frequencyInput = document.getElementById('frequency');
+    const frequencyOut   = document.getElementById('frequency-out');
+    const hint           = document.getElementById('hint');
+    const outT           = document.getElementById('out-T');
+    const outX           = document.getElementById('out-x');
+    const outV           = document.getElementById('out-v');
+    const outA           = document.getElementById('out-a');
+    const btnReset       = document.getElementById('btn-reset');
+
+    // ─── 4. Графики ───────────────────────────────────
+    let chartX = null;
+    let chartV = null;
+
+    const AXIS_COLOR = '#94a3b8';
+    const TICK_COLOR = '#64748b';
+    const GRID_COLOR = '#1e293b';
+
+    // Оси по вертикали фиксированы — так видно изменение амплитуды
+    const X_LIMIT = 0.30;            // ±0.30 м
+    const X_STEP = 0.10;
+    const V_LIMIT = 3.0;             // ±3.0 м/с
+    const V_STEP = 1.0;
+
+    function traceDataset(label, color) {
+      return {
+        label,
+        data: [],
+        borderColor: color,
+        backgroundColor: color,
+        borderWidth: 2,
+        fill: false,
+        tension: 0,
+        pointRadius: 0
+      };
+    }
+
+    function markerDataset() {
+      return {
+        label: 'Текущее значение',
+        data: [],
+        showLine: false,
+        clip: false,
+        borderWidth: 0,
+        backgroundColor: '#f59e0b',
+        borderColor: '#f59e0b',
+        pointRadius: 5,
+        pointHoverRadius: 6
+      };
+    }
+
+    function chartOptions(yTitle, yStep) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        parsing: false,
+        normalized: true,
+        locale: 'en-US',   // десятичные точки, как в показаниях
+        plugins: {
+          legend: {
+            labels: {
+              color: AXIS_COLOR,
+              filter: (item) => item.datasetIndex === 0
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            min: 0,
+            max: 4,
+            title: { display: true, text: 'Время t, с', color: AXIS_COLOR },
+            ticks: { color: TICK_COLOR, maxTicksLimit: 7 },
+            grid: { color: GRID_COLOR }
+          },
+          y: {
+            min: -1,
+            max: 1,
+            title: { display: true, text: yTitle, color: AXIS_COLOR },
+            ticks: { color: TICK_COLOR, stepSize: yStep },
+            grid: { color: GRID_COLOR }
+          }
+        }
+      };
+    }
+
+    function initCharts() {
+      // Если Chart.js не загрузился (нет интернета), сцена всё равно работает
+      if (typeof Chart === 'undefined') {
+        document.getElementById('charts').hidden = true;
+        return;
+      }
+
+      chartX = new Chart(document.getElementById('chart-x').getContext('2d'), {
+        type: 'line',
+        data: {
+          datasets: [
+            traceDataset('Смещение x(t)', '#3b82f6'),
+            markerDataset()
+          ]
+        },
+        options: chartOptions('Смещение x, м', X_STEP)
+      });
+
+      chartV = new Chart(document.getElementById('chart-v').getContext('2d'), {
+        type: 'line',
+        data: {
+          datasets: [
+            traceDataset('Скорость v(t)', '#22c55e'),
+            markerDataset()
+          ]
+        },
+        options: chartOptions('Скорость v, м/с', V_STEP)
+      });
+
+      // Фиксированные пределы по вертикали
+      chartX.options.scales.y.min = -X_LIMIT;
+      chartX.options.scales.y.max = X_LIMIT;
+      chartV.options.scales.y.min = -V_LIMIT;
+      chartV.options.scales.y.max = V_LIMIT;
+
+      chartX.update('none');
+      chartV.update('none');
+    }
+
+    function trimTrace(data, cutoff) {
+      // Оставляем одну точку до окна, чтобы линия доходила до левого края
+      while (data.length > 2 && data[1].x < cutoff) data.shift();
+    }
+
+    function pushCharts() {
+      if (!chartX) return;
+
+      const window = 2 * period();
+      const cutoff = Math.max(0, state.time - window) - 1;
+      const tMin = Math.max(0, state.time - window);
+      const tMax = Math.max(window, state.time);
+
+      chartX.data.datasets[0].data.push({ x: state.time, y: state.x });
+      chartV.data.datasets[0].data.push({ x: state.time, y: state.v });
+      trimTrace(chartX.data.datasets[0].data, cutoff);
+      trimTrace(chartV.data.datasets[0].data, cutoff);
+
+      // Текущее значение — движущаяся точка
+      chartX.data.datasets[1].data = [{ x: state.time, y: state.x }];
+      chartV.data.datasets[1].data = [{ x: state.time, y: state.v }];
+
+      // Показываем последние два периода (как на осциллографе)
+      chartX.options.scales.x.min = tMin;
+      chartX.options.scales.x.max = tMax;
+      chartV.options.scales.x.min = tMin;
+      chartV.options.scales.x.max = tMax;
+
+      chartX.update('none');
+      chartV.update('none');
+    }
+
+    function resetCharts() {
+      if (!chartX) return;
+
+      chartX.data.datasets[0].data = [];
+      chartX.data.datasets[1].data = [];
+      chartV.data.datasets[0].data = [];
+      chartV.data.datasets[1].data = [];
+
+      const window = 2 * period();
+      chartX.options.scales.x.min = 0;
+      chartX.options.scales.x.max = window;
+      chartV.options.scales.x.min = 0;
+      chartV.options.scales.x.max = window;
+
+      chartX.update('none');
+      chartV.update('none');
+    }
+
+    // ─── 5. Вспомогательные функции сцены ─────────────
+    function roundedRectPath(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.arcTo(x + w, y, x + w, y + r, r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+      ctx.lineTo(x + r, y + h);
+      ctx.arcTo(x, y + h, x, y + h - r, r);
+      ctx.lineTo(x, y + r);
+      ctx.arcTo(x, y, x + r, y, r);
+      ctx.closePath();
+    }
+
+    // ─── 6. Отрисовка сцены ───────────────────────────
+    function drawBackdrop() {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(148, 163, 184, .045)';
+      ctx.lineWidth = 1;
+      for (let x = 20; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 20; y < canvas.height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawAmplitudeMarkers() {
+      const ampPx = state.A * PX_PER_METER;
+      const marks = [
+        { y: EQ_Y - ampPx, label: `+${state.A.toFixed(2)} м`, color: '#60a5fa' },
+        { y: EQ_Y,         label: '0',                        color: '#94a3b8' },
+        { y: EQ_Y + ampPx, label: `−${state.A.toFixed(2)} м`, color: '#60a5fa' }
+      ];
+
+      ctx.save();
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+
+      for (const m of marks) {
+        ctx.strokeStyle = m.color === '#94a3b8'
+          ? 'rgba(148, 163, 184, .35)'
+          : 'rgba(96, 165, 250, .35)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 6]);
+        ctx.beginPath();
+        ctx.moveTo(330, m.y);
+        ctx.lineTo(520, m.y);
+        ctx.stroke();
+
+        ctx.fillStyle = m.color;
+        ctx.fillText(m.label, 318, m.y);
+      }
+
+      ctx.restore();
+    }
+
+    function drawSupport() {
+      // Потолок
+      ctx.save();
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(340, 54, 180, 10);
+
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(340, 54);
+      ctx.lineTo(520, 54);
+      ctx.stroke();
+
+      // Штриховка «потолка»
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(148, 163, 184, .35)';
+      for (let x = 340; x < 520; x += 14) {
+        ctx.beginPath();
+        ctx.moveTo(x, 54);
+        ctx.lineTo(x + 11, 43);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawSpring(bottomY) {
+      const topY = 64;
+      const coils = 12;
+      const amp = 13;
+      const lead = 8;
+      const y0 = topY + lead;
+      const y1 = bottomY - lead;
+      const steps = coils * 2;
+
+      ctx.save();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 3;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(SPRING_CX, topY);
+      ctx.lineTo(SPRING_CX, y0);
+
+      for (let i = 1; i <= steps; i++) {
+        const y = y0 + ((y1 - y0) * i) / steps;
+        const x = SPRING_CX + (i % 2 ? amp : -amp);
+        ctx.lineTo(x, y);
+      }
+
+      ctx.lineTo(SPRING_CX, bottomY);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawMass(massY) {
+      const top = massY - MASS_H / 2;
+
+      // Крючок
+      ctx.save();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(SPRING_CX, top - 4, 5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Сам груз
+      const grad = ctx.createLinearGradient(0, top, 0, top + MASS_H);
+      grad.addColorStop(0, '#64748b');
+      grad.addColorStop(1, '#334155');
+
+      ctx.save();
+      roundedRectPath(SPRING_CX - MASS_W / 2, top, MASS_W, MASS_H, 10);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Блик
+      ctx.strokeStyle = 'rgba(226, 232, 240, .35)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(SPRING_CX - MASS_W / 2 + 12, top + 7);
+      ctx.lineTo(SPRING_CX + MASS_W / 2 - 12, top + 7);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('m', SPRING_CX, massY + 2);
+    }
+
+    function drawVector(x, y, value, maxValue, color, label) {
+      if (maxValue < 1e-9) return;
+      if (Math.abs(value) < maxValue * 0.02) return;
+
+      const dir = Math.sign(value);
+      const len = 12 + 38 * Math.min(1, Math.abs(value) / maxValue);
+      const y2 = y + dir * len;
+
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, y2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x, y2);
+      ctx.lineTo(x - 4.5, y2 - dir * 7);
+      ctx.lineTo(x + 4.5, y2 - dir * 7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = color;
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, x + 8, y2);
+    }
+
+    function drawVectors(massY) {
+      // Направляющая от груза к стрелкам
+      ctx.save();
+      ctx.strokeStyle = 'rgba(148, 163, 184, .18)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.moveTo(SPRING_CX + MASS_W / 2, massY);
+      ctx.lineTo(ACCEL_X + 10, massY);
+      ctx.stroke();
+      ctx.restore();
+
+      drawVector(VECTOR_X, massY, -state.v, vMax(), '#34d399', 'v');
+      drawVector(ACCEL_X, massY, -state.a, aMax(), '#f87171', 'a');
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawBackdrop();
+      drawAmplitudeMarkers();
+      drawSupport();
+
+      // Положительное смещение — вверх (как на графике x(t))
+      const massY = EQ_Y - state.x * PX_PER_METER;
+      const massTop = massY - MASS_H / 2;
+
+      drawSpring(massTop - 4);
+      drawMass(massY);
+      drawVectors(massY);
+    }
+
+    // ─── 7. Показания и подсказка ─────────────────────
+    function updateReadout() {
+      outT.textContent = period().toFixed(2);
+      outX.textContent = state.x.toFixed(3);
+      outV.textContent = state.v.toFixed(2);
+      outA.textContent = state.a.toFixed(2);
+    }
+
+    function updateHint() {
+      hint.textContent =
+        `A = ${state.A.toFixed(2)} м, f = ${state.f.toFixed(1)} Гц → ` +
+        `T = ${period().toFixed(2)} с, ω = ${omega().toFixed(2)} рад/с. ` +
+        `Максимальная скорость ${vMax().toFixed(2)} м/с, ` +
+        `максимальное ускорение ${aMax().toFixed(2)} м/с².`;
+    }
+
+    // ─── 8. Анимация ──────────────────────────────────
+    function animate(timestamp) {
+      if (state.lastTimestamp === null) {
+        state.lastTimestamp = timestamp;
+      }
+
+      const dt = Math.min((timestamp - state.lastTimestamp) / 1000, 0.05);
+      state.lastTimestamp = timestamp;
+
+      state.time += dt;
+      state.phase = (state.phase + omega() * dt) % (Math.PI * 2);
+      computeMotion();
+
+      draw();
+      updateReadout();
+      pushCharts();
+
+      requestAnimationFrame(animate);
+    }
+
+    // ─── 9. Сброс ─────────────────────────────────────
+    function reset() {
+      state.A = 0.10;
+      state.f = 0.5;
+      amplitudeInput.value = 0.10;
+      frequencyInput.value = 0.5;
+      amplitudeOut.textContent = '0.10 м';
+      frequencyOut.textContent = '0.5 Гц';
+
+      // Начинаем с положения равновесия: x = 0, скорость максимальна
+      state.phase = 0;
+      state.time = 0;
+      state.lastTimestamp = null;
+      computeMotion();
+
+      updateReadout();
+      updateHint();
+      resetCharts();
+      draw();
+    }
+
+    // ─── 10. Ползунки и кнопка ────────────────────────
+    amplitudeInput.addEventListener('input', (e) => {
+      state.A = parseFloat(e.target.value);
+      amplitudeOut.textContent = `${state.A.toFixed(2)} м`;
+      computeMotion();
+      updateReadout();
+      updateHint();
+      draw();
+    });
+
+    frequencyInput.addEventListener('input', (e) => {
+      state.f = parseFloat(e.target.value);
+      frequencyOut.textContent = `${state.f.toFixed(1)} Гц`;
+      computeMotion();
+      updateReadout();
+      updateHint();
+      draw();
+    });
+
+    btnReset.addEventListener('click', reset);
+
+    // ─── 11. Старт ────────────────────────────────────
+    initCharts();
+    reset();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
